@@ -6,28 +6,57 @@
 
 ## 文档
 
+**新会话从这里开始：**
+
 | 文档 | 内容 |
 |---|---|
-| [docs/STATUS.md](docs/STATUS.md) | **当前进度与交接说明 —— 恢复工作先读这一份** |
+| [docs/继续-明天.md](docs/继续-明天.md) | **下一步做什么（开工先读这一份）** |
+| [docs/现状存档-关机前.md](docs/现状存档-关机前.md) | 当前设备与数据状态、未完成项的已知信息、别重踩的工具坑 |
+| [docs/交接-剩余工作.md](docs/交接-剩余工作.md) | 剩余工作与分工：谁来做、怎么判定（含逐项验证证据） |
+
+**背景与历史：**
+
+| 文档 | 内容 |
+|---|---|
+| [docs/STATUS.md](docs/STATUS.md) | 活文档：当前进度、bug 台账（§1.1 有 25 条实测记录）、平台陷阱、架构不变量 |
 | [docs/PRD.md](docs/PRD.md) | 需求文档（已确认）：功能需求、数据模型、关键业务规则、17 条验收标准 |
 | [docs/TECH-STACK.md](docs/TECH-STACK.md) | 技术栈（已确认）：架构选型、关键实现决策、锁定版本 |
 | [docs/DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md) | 开发计划：M0~M7 里程碑、验证方式、跨语言接口契约 |
+| [docs/MACHINE-CHECKLIST.md](docs/MACHINE-CHECKLIST.md) | **真机点检清单**：每条 AC 怎么查、通过的样子是什么 |
+| [docs/M5-STATUS.md](docs/M5-STATUS.md) · [M6](docs/M6-STATUS.md) · [M8](docs/M8-STATUS.md) | 各里程碑报告（M5 的 §5.3 是 HyperOS 私有设置页的定位结论） |
 | [docs/M0-STATUS.md](docs/M0-STATUS.md) | M0 完成报告：交付项、验证证据 |
 
 ## 当前状态
 
-**M0、M1 已完成。** M1 是前端页面效果：5 个页面（列表 / 编辑 / 分组管理 / 设置 / 权限体检）跑在 mock 数据上。
-**下一步是 M2 · 业务规则层**（纯 Kotlin + 单元测试）。
+**M0~M8 已完成**：原生数据层与调度、响铃全链路、权限体检、契约全量接线、真机试用后的多轮改进
+（长按批量删除、滚轮循环滚动、编辑页相对时间预览、编辑页直接新建分组、贪睡全局开关、上滑关闭闹钟）。
 
-界面接的是 `web/src/bridge/mock.ts` 的演示数据，**不是真实数据库** —— 原生实现要到 M6；届时用 `VITE_BRIDGE=native` 构建即切换到真实插件，页面代码不需改动。mock 在原生构建里不存在。
+**可复现的基线数字**（改动后必须能复现同样的数字）：
 
-审阅界面时的两个调试入口（仅 mock 下可用）：
+| 项 | 值 |
+|---|---|
+| JVM 单测 | **102**，0 failures |
+| 仪器测试 | **28**（MigrationTest 2 / AlarmRepositoryTest 17 / AlarmSchedulerTest 6 / ShellSmokeTest 3） |
+| 调度端到端验收 | `tools/m3-acceptance.ps1` **5/5** |
+| 乱码检查 | `python tools/check-encoding.py` → clean |
+| 数据库版本 | 3（WAL 模式，schema 导出在 `android/app/schemas/`） |
 
-```js
-window.__alarmhubMock                                   // 直接操作 mock 数据
-sessionStorage.setItem('alarmhub:scenario', 'empty')    // 然后 location.reload() 看空状态
-sessionStorage.removeItem('alarmhub:scenario')          // 恢复演示数据
-```
+**下一步是 M7 · 真机验证的剩余项**（AC-12 被回收后仍响、AC-10 改时间、AC-16 深浅色、AC-17 200 个闹钟等），
+以及只差用户手指/耳朵的那几项（上滑关闭、锁屏全响、静音下仍响、震动与渐强听感）。
+详见 [docs/继续-明天.md](docs/继续-明天.md) §3。
+
+## 这个仓库里有什么、没有什么
+
+`.gitignore` 是有意写成那样的，两类东西**故意不入库**：
+
+| 不入库 | 为什么 |
+|---|---|
+| `.gradle-home/`（762 MB）、`.npm-cache/`（168 MB）、`node_modules/`、`android/**/build/` | 本机工具链缓存与构建产物，可由 `tools/env.ps1` + `npm install` + `gradle` 重建 |
+| `.shots/miui-securitycenter.apk`（80 MB） | MIUI 系统 APK，当初拉下来只为定位它私有设置页的组件名；结论已落在 [M5-STATUS](docs/M5-STATUS.md) §5.3，第三方二进制不上传 |
+| `android/local.properties` | 只写了本机 SDK 路径（`D:\DevEnv\Android\Sdk`） |
+
+**在库里**（有意保留）：全部源码与测试、`android/app/schemas/`（Room 导出的 schema，供迁移核对）、
+以及 `.shots/` 里的手势测试脚本、探针与截图 —— 那是这套验证方法的证据，交接文档大量引用它们。
 
 ## 架构
 
@@ -82,6 +111,31 @@ adb shell am start -n com.alarmhub.app/.MainActivity
 `www/` 是构建产物，不手工编辑。
 
 用全局 `gradle`，不要用 `gradlew`（后者每次要在 `GRADLE_USER_HOME` 里解包 439 MB）。
+仓库里没有 `gradlew` 是有意的；`android/app/src/main/assets/public/` 由 `cap sync` 从 `www/` 生成，也不入库。
+
+## 验证（不是"跑一下测试"，而是这个项目验证东西的方式）
+
+```powershell
+. .\tools\env.ps1
+
+# 业务规则：秒级 JVM 单测
+cd android; gradle :app:testDebugUnitTest --console=plain
+
+# 数据层与调度记账：仪器测试（真 SQLite / 真 Room）
+gradle :app:assembleDebugAndroidTest
+adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
+adb shell am instrument -w -e class com.alarmhub.app.data.AlarmRepositoryTest `
+    com.alarmhub.app.test/androidx.test.runner.AndroidJUnitRunner
+
+# 端到端调度验收（5 个场景，会真的等到点，约 6 分钟）
+.\tools\m3-acceptance.ps1
+
+# 一键真机验证：构建 → 逐字节核对安装 → 数据前后对比 → 跑 UI 测试 → 汇总
+python tools\verify-phone.py
+
+# 乱码检查（本机控制台是 GBK 代码页，源码绝不能走 shell 文本管道）
+python tools\check-encoding.py
+```
 
 ## 看页面 / 调页面 / 测试
 
