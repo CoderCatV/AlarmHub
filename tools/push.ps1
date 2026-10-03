@@ -80,8 +80,16 @@ $head = (git rev-parse HEAD).Trim()
 Ok "已提交 $($head.Substring(0,7))"
 
 # ---- 4. 推送 + 核对 -------------------------------------------------------------------
-git push 2>&1 | ForEach-Object { Info $_ }
-if ($LASTEXITCODE -ne 0) { Fail '推送失败（远端 HEAD 未更新；本地提交仍在）' }
+# `git push` 把它的进度写到 **stderr**（"To github.com:..."、"* [new branch]"）。
+# 在 `$ErrorActionPreference='Stop'` 下，PowerShell 会把外来的 stderr 当成致命错误并中断脚本 ——
+# 于是"推送成功了但脚本报错退出"。这里把 stderr 正常合并成输出，只认退出码。
+$pushOut = & git push 2>&1 | ForEach-Object { "$_" }
+$pushCode = $LASTEXITCODE
+if ($pushCode -ne 0) {
+    $pushOut | ForEach-Object { Info $_ }
+    Fail '推送失败（远端 HEAD 未更新；本地提交仍在，修好网络或权限后重跑 git push 即可）'
+}
+$pushOut | Where-Object { $_ -notmatch '^remote:\s*$' } | ForEach-Object { Info $_ }
 
 git fetch -q origin
 $counts = (git rev-list --left-right --count HEAD...origin/master) -split '\s+'
