@@ -33,20 +33,49 @@ function Fail($msg) { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
 function Ok($msg)   { Write-Host "✓ $msg" -ForegroundColor Green }
 function Info($msg) { Write-Host "  $msg" }
 
+<#
+.SYNOPSIS
+    Runs a native command (git/python) and returns its combined output, without its stderr killing us.
+
+.DESCRIPTION
+    Native tools write normal, expected chatter to **stderr** -- `git add` warns about LF→CRLF,
+    `git push` prints "To github.com:…". Under `$ErrorActionPreference = 'Stop'` PowerShell turns any
+    foreign stderr into a fatal error, and `2>&1` does **not** disarm it. That is how this script first
+    failed twice: once reported "push failed" after a successful push, once died at `git add -A` on a
+    line-ending warning.
+
+    So every native call goes through here: the preference is relaxed for the duration, stderr is
+    collected as text, and the caller decides based on `$LASTEXITCODE` only.
+#>
+function Invoke-Native {
+    param([string]$Exe, [string[]]$Arguments)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = @(& $Exe @Arguments 2>&1 | ForEach-Object { "$_" })
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{ Output = $output; Code = $code }
+}
+
 # ---- 1. 乱码检查 ----------------------------------------------------------------------
 Info '乱码检查…'
-$enc = python tools\check-encoding.py 2>&1
-if ($LASTEXITCODE -ne 0) { $enc | ForEach-Object { Info $_ }; Fail '乱码检查未通过；不要提交（源码只能用编辑工具读写，别走 shell 管道）' }
-Ok ($enc | Select-Object -Last 1)
+$enc = Invoke-Native python @('tools\check-encoding.py')
+if ($enc.Code -ne 0) { $enc.Output | ForEach-Object { Info $_ }; Fail '乱码检查未通过；不要提交（源码只能用编辑工具读写，别走 shell 管道）' }
+Ok ($enc.Output | Select-Object -Last 1)
 
 # ---- 2. 暂存并审查 --------------------------------------------------------------------
 # `core.quotepath=false`：本仓库的文件名有中文（docs/继续-明天.md 之类）。git 默认把非 ASCII
 # 路径按八进制转义输出（"\346\226\207…"），拿这种字符串去 Get-Item 会报
 # "Illegal characters in path"。这是**仓库级**设置，不动用户的全局配置。
-git config core.quotepath false
+Invoke-Native git @('config', 'core.quotepath', 'false') | Out-Null
 
-git add -A
-$staged = @(git diff --cached --name-only)
+$added = Invoke-Native git @('add', '-A')
+if ($added.Code -ne 0) { $added.Output | ForEach-Object { Info $_ }; Fail 'git add 失败' }
+
+$staged = @((Invoke-Native git @('diff', '--cached', '--name-only')).Output)
 if ($staged.Count -eq 0) { Ok '没有改动，无需提交'; exit 0 }
 Info "将要提交 $($staged.Count) 个文件"
 
@@ -74,34 +103,24 @@ if ($big -and -not $AllowBigFiles) {
 if ($WhatIfOnly) { Ok '仅检查模式：以上都会提交，未执行'; exit 0 }
 
 # ---- 3. 提交 --------------------------------------------------------------------------
-git -c i18n.commitEncoding=UTF-8 commit -q -m $Message
-if ($LASTEXITCODE -ne 0) { Fail '提交失败' }
-$head = (git rev-parse HEAD).Trim()
+$commit = Invoke-Native git @('-c', 'i18n.commitEncoding=UTF-8', 'commit', '-q', '-m', $Message)
+if ($commit.Code -ne 0) { $commit.Output | ForEach-Object { Info $_ }; Fail '提交失败' }
+$head = (Invoke-Native git @('rev-parse', 'HEAD')).Output[0].Trim()
 Ok "已提交 $($head.Substring(0,7))"
 
 # ---- 4. 推送 + 核对 -------------------------------------------------------------------
-# `git push` 把进度写到 **stderr**（"To github.com:…"、"* [new branch]"）。脚本开头设了
-# `$ErrorActionPreference='Stop'`，而这个设置管得住外来的 stderr —— 连 `2>&1` 也不行：
-# PowerShell 会先把它当成致命错误中断脚本，于是"推送明明成功了，脚本却报错退出"。
-# 所以下面临时放宽为 Continue，把 stderr 收成普通文本，最后只认退出码。
-$pushOut = @()
-$previous = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
-try {
-    $pushOut = @(& git push 2>&1 | ForEach-Object { "$_" })
-    $pushCode = $LASTEXITCODE
-} finally {
-    $ErrorActionPreference = $previous
-}
-if ($pushCode -ne 0) {
-    $pushOut | ForEach-Object { Info $_ }
+# 推送的进度走 stderr，走 Invoke-Native 才不会把它当致命错误（见该函数的说明）。
+$push = Invoke-Native git @('push')
+if ($push.Code -ne 0) {
+    $push.Output | ForEach-Object { Info $_ }
     Fail '推送失败（远端 HEAD 未更新；本地提交仍在，修好网络或权限后重跑 git push 即可）'
 }
-$pushOut | Where-Object { $_ -notmatch '^remote:\s*$' } | ForEach-Object { Info $_ }
+$push.Output | ForEach-Object { Info $_ }
 
-git fetch -q origin
-$counts = (git rev-list --left-right --count HEAD...origin/master) -split '\s+'
+Invoke-Native git @('fetch', '-q', 'origin') | Out-Null
+$branch = (Invoke-Native git @('branch', '--show-current')).Output[0].Trim()
+$counts = ((Invoke-Native git @('rev-list', '--left-right', '--count', "HEAD...origin/$branch")).Output[0]) -split '\s+'
 if ($counts[0] -ne '0' -or $counts[1] -ne '0') {
     Fail "本地与远端不一致（ahead=$($counts[0]) behind=$($counts[1])）"
 }
-Ok "远端与本地一致：$($head.Substring(0,7)) on $(git branch --show-current)"
+Ok "远端与本地一致：$($head.Substring(0,7)) on $branch"

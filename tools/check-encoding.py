@@ -80,6 +80,28 @@ def recovers(fragment: str) -> str | None:
     return original if CJK.search(original) else None
 
 
+# ---------------------------------------------------------------------------------------
+# Deliberate exemptions.
+#
+# The round-trip rule has one blind spot: a document that **quotes** mojibake as an example is
+# indistinguishable from a document that *is* mojibake -- the quoted sample round-trips by definition.
+# docs/STATUS.md #26 hit exactly that: it records the damaged commit message verbatim, so the checker
+# flagged the file that explains the damage.
+#
+# Rather than loosening the rule (which is what makes it worth having), an exemption must be **asked
+# for in the text**. That keeps the strong default and makes every hole in it visible to whoever reads
+# the file. Two forms:
+#
+#   * `<!-- encoding-check: allow-file -->` anywhere in a markdown/HTML-ish file: exempt that file.
+#   * `encoding-check: allow` on a line: exempt that line only.
+#
+# Both are greppable on purpose. If one ever appears somewhere it should not, `grep -rn
+# "encoding-check: allow"` is the audit.
+# ---------------------------------------------------------------------------------------
+ALLOW_FILE = "encoding-check: allow-file"
+ALLOW_LINE = "encoding-check: allow"
+
+
 def offenders(line: str) -> list[str]:
     bad = []
     if "\ufffd" in line:
@@ -109,6 +131,7 @@ def iter_files():
 def main() -> int:
     hits = []
     checked = 0
+    exempt_files = []
     for f in iter_files():
         try:
             text = f.read_text(encoding="utf-8")
@@ -116,7 +139,12 @@ def main() -> int:
             hits.append((f.relative_to(ROOT), 0, f"not valid UTF-8 ({e})"))
             continue
         checked += 1
+        if ALLOW_FILE in text:
+            exempt_files.append(str(f.relative_to(ROOT)))
+            continue
         for n, line in enumerate(text.splitlines(), 1):
+            if ALLOW_LINE in line:
+                continue
             bad = offenders(line)
             if bad:
                 hits.append((f.relative_to(ROOT), n, f"{'; '.join(bad)} :: {line.strip()[:90]}"))
@@ -126,9 +154,14 @@ def main() -> int:
         for rel, n, why in hits:
             print(f"  {rel}:{n}  {why}")
         print("\nRewrite the file with an editor and save it as UTF-8. See docs/STATUS.md 1.2 #7.")
+        print(f"(Quoting mojibake on purpose? Add `{ALLOW_LINE}` to that line, or "
+              f"`{ALLOW_FILE}` to the file.)")
         return 1
 
-    print(f"clean: {checked} files checked, no mojibake")
+    note = f"; {len(exempt_files)} file(s) opted out" if exempt_files else ""
+    print(f"clean: {checked} files checked, no mojibake{note}")
+    for rel in exempt_files:
+        print(f"  opted out by `{ALLOW_FILE}`: {rel}")
     return 0
 
 
