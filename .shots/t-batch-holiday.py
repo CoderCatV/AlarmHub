@@ -153,7 +153,25 @@ def leave_selection_mode(d):
 
 
 def open_settings(d):
-    d.eval("JSON.stringify(document.querySelector('.hero__settings').click() ?? null)")
+    """Reaches the settings page through the hero's ⋮ menu.
+
+    FR-7.11 moved this entry: the top-left 「设置」 pill is gone, and 分组管理 / 权限体检 / 设置 now live
+    behind a ⋮ button top-right. This helper used to click `.hero__settings`, which no longer exists —
+    the test then died with `Cannot read properties of null (reading 'click')`, which reads like a broken
+    page rather than a moved button.
+    """
+    d.eval("JSON.stringify(document.querySelector('.menu__button').click() ?? null)")
+    for _ in range(10):
+        if d.eval("!!document.querySelector('.menu__sheet')"):
+            break
+        time.sleep(0.15)
+    clicked = d.eval(
+        "JSON.stringify((()=>{const items=[...document.querySelectorAll('.menu__item')];"
+        "const hit=items.find(b => b.textContent.trim().startsWith('设置'));"
+        "if(!hit) return 'no 设置 entry'; hit.click(); return 'clicked';})())"
+    )
+    if clicked != "clicked":
+        raise RuntimeError(f"could not open settings from the ⋮ menu: {clicked}")
     time.sleep(1.2)
 
 

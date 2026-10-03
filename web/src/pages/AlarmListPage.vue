@@ -36,7 +36,32 @@ const emit = defineEmits<{
   create: []
   openSettings: []
   openPermissions: []
+  openGroups: []
 }>()
+
+/**
+ * The hero's overflow menu (FR-7.11).
+ *
+ * The settings entry used to sit top-left as a labelled pill. It moved to a ⋮ menu top-right because
+ * 分组管理 — the feature this whole app exists for — should be *nearer* than 设置, not two taps deeper
+ * inside it. That is the same arrangement MIUI's own clock uses (作息管理 / 设置).
+ *
+ * The menu is an **overlay**: it must not change the height of anything above the list. Same reasoning
+ * as the selection bar below — a long press is still in progress while the layout settles, and a row
+ * that moves under the finger gets ticked instead of the one the user pressed.
+ */
+const menuOpen = ref(false)
+
+function closeMenu() {
+  menuOpen.value = false
+}
+
+function pickFromMenu(what: 'groups' | 'permissions' | 'settings') {
+  menuOpen.value = false
+  if (what === 'groups') emit('openGroups')
+  else if (what === 'permissions') emit('openPermissions')
+  else emit('openSettings')
+}
 
 const WEEKDAY = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -195,7 +220,11 @@ async function onDeleteSelected() {
 watch(
   () => selection.active,
   (active) => {
-    if (!active) {
+    if (active) {
+      // FR-7.11.5: entering selection mode replaces the hero with the selection bar, so a menu left
+      // open would float over a state it no longer belongs to.
+      closeMenu()
+    } else {
       confirmingDelete.value = false
       deleteError.value = null
       batchError.value = null
@@ -246,7 +275,43 @@ async function onSetSelected(enabled: boolean): Promise<void> {
       permission banner and the paused notice below are no longer hidden in this mode.
     -->
     <header class="hero">
-      <button type="button" class="hero__settings" @click="emit('openSettings')">设置</button>
+      <!--
+        FR-7.11: the overflow menu is top-right (was a 「设置」 pill top-left). The scrim is a full-page
+        transparent layer *behind* the menu, so a tap anywhere else closes it without a document-level
+        listener that would fight the row's long-press handling.
+      -->
+      <button
+        v-if="menuOpen"
+        type="button"
+        class="menu__scrim"
+        aria-label="关闭菜单"
+        @click="closeMenu"
+      />
+      <div class="menu">
+        <button
+          type="button"
+          class="menu__button"
+          :aria-expanded="menuOpen"
+          aria-label="更多"
+          @click="menuOpen = !menuOpen"
+        >
+          <span aria-hidden="true">⋮</span>
+        </button>
+        <div v-if="menuOpen" class="menu__sheet" role="menu">
+          <!-- 分组管理 first: it is the core feature (MIUI's clock puts 作息管理 in this spot). -->
+          <button type="button" class="menu__item" role="menuitem" @click="pickFromMenu('groups')">
+            分组管理
+          </button>
+          <button type="button" class="menu__item" role="menuitem" @click="pickFromMenu('permissions')">
+            权限体检
+            <span v-if="criticalMissingPermissions.length" class="menu__badge">待处理</span>
+          </button>
+          <button type="button" class="menu__item" role="menuitem" @click="pickFromMenu('settings')">
+            设置
+          </button>
+        </div>
+      </div>
+
       <span v-if="usingMock" class="hero__mock">演示数据</span>
       <p class="hero__clock">{{ nowClock }}</p>
       <p class="hero__date">{{ nowDate }}</p>
@@ -436,17 +501,78 @@ async function onSetSelected(enabled: boolean): Promise<void> {
   gap: 2px;
 }
 
-.hero__settings {
+/* ---- overflow menu (FR-7.11) ----
+   Absolutely positioned, so opening it never changes the hero's height (that would move the list and
+   break a long press in progress — see the selection-bar note in the template). */
+
+.menu {
   position: absolute;
-  inset-block-start: calc(var(--safe-top) + var(--sp-3));
-  inset-inline-start: var(--page-x);
-  min-block-size: 28px;
-  padding: 2px 12px;
+  inset-block-start: calc(var(--safe-top) + var(--sp-2));
+  inset-inline-end: var(--page-x);
+  z-index: 30;
+}
+
+.menu__button {
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
   border-radius: var(--r-pill);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
   color: var(--text-dim);
-  font-size: var(--fs-xs);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.menu__button[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* A full-page transparent layer that catches the "tap elsewhere" case. It sits under the sheet
+   (z-index below) but over everything else. */
+.menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+}
+
+.menu__sheet {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-1));
+  inset-inline-end: 0;
+  z-index: 30;
+  min-inline-size: 168px;
+  padding: var(--sp-1) 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sheet);
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0 var(--sp-4);
+  text-align: start;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.menu__item:active {
+  background: var(--surface-2);
+}
+
+.menu__badge {
+  font-size: var(--fs-2xs);
+  color: var(--warn);
+  background: var(--tint-warn);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+  white-space: nowrap;
 }
 
 .hero__mock {

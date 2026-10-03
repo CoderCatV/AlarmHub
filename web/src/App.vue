@@ -35,6 +35,7 @@ onUnmounted(() => stopClock?.())
     @create="go({ name: 'edit', id: null })"
     @open-settings="go({ name: 'settings' })"
     @open-permissions="go({ name: 'permissions' })"
+    @open-groups="go({ name: 'groups' })"
   />
 
   <AlarmEditorPage

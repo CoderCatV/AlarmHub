@@ -338,6 +338,29 @@ class Driver:
             return value
         raise RuntimeError(f"cdp-probe kept failing for: {js}\nlast output: {last}")
 
+    def eval_list(self, js: str, attempts: int = 6, pause: float = 0.4):
+        """Evaluate an expression that must yield a **list**, retrying until it does.
+
+        `eval` already retries transport failures and page exceptions. What it cannot know is that a
+        *successful* read came back with the wrong shape because the app was busy: a bridge call issued
+        while the page is mid-write resolves with `{}` often enough to break fixtures — a test's
+        "delete my leftover rows" read returned `{}`, so nothing was deleted, the next run counted four
+        rows instead of two, and the failure cascade read like a dozen product defects (found while
+        cleaning up fixtures for the FR-7.11 menu test, 2026-10-03).
+
+        Callers that need a list use this instead of `eval`, so the retry lives in one place rather than
+        being re-derived (or forgotten) per test.
+        """
+        last = None
+        for i in range(attempts):
+            last = self.eval(js)
+            if isinstance(last, list):
+                return last
+            time.sleep(pause * (i + 1))
+        raise RuntimeError(
+            f"expected a list after {attempts} attempts, got {type(last).__name__}: {last!r}\n  for: {js}"
+        )
+
     def to_device(self, css_x: float, css_y: float) -> tuple[int, int]:
         return round(css_x * self.dpr), round(css_y * self.dpr) + self.top
 

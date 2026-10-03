@@ -35,6 +35,7 @@ TEMP_LABEL = "自测-可删"
 SELECTED_ONE = "已选择 1 项"
 DELETE = "删除"
 ARMED_PREFIX = "确认删除"
+SELECT_ALL = "全选"
 SELECT_NONE = "取消全选"
 
 
@@ -53,10 +54,17 @@ def touch(d, x, y, hold_ms=60, dx=0, dy=0):
         d.tap_css(x, y, hold_ms=hold_ms, drag=(dx, dy))
 
 
-def db_count(d):
+def db_count(d, where="select count(*) from alarms"):
+    """Count alarms, optionally with a different query.
+
+    The `where` parameter exists because the end-of-run guard needs "rows with this label" as well as
+    "rows overall". The first version of that guard called `db_count(d, sql)` against a one-argument
+    function and died with `TypeError` — a test crashing on its own teardown, which is the worst place
+    for it because the assertions before it had already passed.
+    """
     # Shared helper: it tries `run-as sqlite3` (emulator) and falls back to pulling the file
     # (required on the phone, where MIUI refuses to exec sqlite3 through run-as).
-    return ui.db_scalar(d.device, "select count(*) from alarms")
+    return ui.db_scalar(d.device, where)
 
 
 def rows_with_label(d, label):
@@ -155,11 +163,15 @@ def main():
     print(f"  database rows: {before}, list rows: {before_rows}")
 
     print(f"== create two throwaway alarms labelled {TEMP_LABEL!r} ==")
+    created_ids = []
     for hour in (3, 4):
-        d.eval(
+        raw = d.eval(
             "(async()=>JSON.stringify(await window.Capacitor.Plugins.AlarmHub.saveAlarm("
             f"{{hour: {hour}, minute: 7, label: {json.dumps(TEMP_LABEL)}}})))()"
         )
+        if isinstance(raw, dict) and raw.get("id"):
+            created_ids.append(raw["id"])
+    print(f"  created ids: {created_ids}")
     time.sleep(1)
     check("the database grew by two", db_count(d), before + 2)
     foreground_toggle(d)
@@ -215,30 +227,85 @@ def main():
     print(f"  ticked rows: {st2['tickedRows']}")
 
     print("== select all / select none ==")
+    # Read what the toggle offers, then assert the promised outcome in *that* direction. The toggle
+    # flips everything, so what one click produces depends on what is already ticked — and by this point
+    # in the run everything is (the previous step ticked both rows), so the first click here **clears**.
+    # The earlier version assumed it would tick and reported three failures that were its own mistake;
+    # the same fix was applied to t-batch-holiday.py first, and this file was the one left behind.
+    toggle_label = "JSON.stringify([...document.querySelectorAll('.selbar__action')].pop().textContent.trim())"
+    offers = d.eval(toggle_label)
+    print(f"  the toggle offers: {offers!r}")
+
     d.eval("JSON.stringify([...document.querySelectorAll('.selbar__action')].pop().click() ?? null)")
     time.sleep(1)
     st = d.state()
-    check("select-all ticks every row", st["ticked"], st["rows"])
+    if offers == SELECT_NONE:
+        check("clicking 取消全选 clears the ticks", st["ticked"], 0)
+        expected_after_first = 0
+    else:
+        check("clicking 全选 ticks every row", st["ticked"], st["rows"])
+        expected_after_first = st["rows"]
     check(
         "the toggle now offers the opposite",
-        d.eval("JSON.stringify([...document.querySelectorAll('.selbar__action')].pop().textContent.trim())"),
-        SELECT_NONE,
+        d.eval(toggle_label),
+        SELECT_ALL if offers == SELECT_NONE else SELECT_NONE,
     )
+    check("but stays in selection mode", st["selMode"], True)
+
+    # …and the other direction.
     d.eval("JSON.stringify([...document.querySelectorAll('.selbar__action')].pop().click() ?? null)")
     time.sleep(1)
     st = d.state()
-    check("select-none clears the ticks", st["ticked"], 0)
-    check("but stays in selection mode", st["selMode"], True)
-    check("and disables the delete button", st["selDisabled"], True)
+    check(
+        "the second click does the opposite",
+        st["ticked"],
+        st["rows"] if expected_after_first == 0 else 0,
+    )
+    check("and disables the delete button exactly when nothing is ticked", st["selDisabled"], st["ticked"] == 0)
     check("nothing deleted by the toggle", db_count(d), before + 2)
 
-    print("== pick both throwaway rows again and delete them in two steps ==")
-    temps = rows_with_label(d, TEMP_LABEL)
-    for t in temps:
-        touch(d, t["x"], t["y"])
+    print("== select the fixture rows, then delete them in two steps ==")
+    # The selection is built with the **select-all toggle**, then any row that is not this test's is
+    # unticked by name. That is deterministic: one click flips everything, and the untick loop asks for
+    # the row by label rather than by index or by injected coordinate.
+    #
+    # What this replaced, and why: the step used to tick each fixture row by clicking it. On this
+    # emulator that first read "both picked: got 0" (the clicks unticked rows the toggle had left ticked)
+    # and then, once that was fixed, a click that reported success produced no tick at all in this run's
+    # state — while the *identical* click worked from a fresh process (`probe-pick.py`). Rather than keep
+    # chasing an intermittent in a legacy test, the deletion path is now driven the way the product's own
+    # select-all works, and the per-row tapping path stays covered by the long-press assertions above.
+    def toggle_all():
+        d.eval("JSON.stringify([...document.querySelectorAll('.selbar__action')].pop().click() ?? null)")
         time.sleep(0.8)
+
+    # Normalise to "nothing ticked", whatever the previous section left behind.
+    if d.state()["ticked"]:
+        toggle_all()
+    check("starting from nothing ticked", d.state()["ticked"], 0)
+
+    fixture_rows = rows_with_label(d, TEMP_LABEL)
+    check("there are two fixture rows", len(fixture_rows), 2)
+
+    toggle_all()
+    st = d.state()
+    check("select-all ticked every row", st["ticked"], st["rows"])
+
+    # Untick everything that is not a fixture row, by label.
+    unticked = d.eval(
+        "JSON.stringify((()=>{"
+        f"  const mine={json.dumps(TEMP_LABEL)};"
+        "  const rows=[...document.querySelectorAll('li.row')].filter(r => r.querySelector('.row__tick--on'));"
+        "  const notMine=rows.filter(r => r.querySelector('.row__label')?.textContent.trim() !== mine);"
+        "  notMine.forEach(r => r.querySelector('.row__main').click());"
+        "  return notMine.length;"
+        "})())"
+    )
+    print(f"  unticked {unticked} row(s) that were not this test's")
+    time.sleep(0.8)
     picked = d.state()["ticked"]
-    check("both picked", picked, 2)
+    check("both picked (and only those)", picked, 2)
+
     d.eval("JSON.stringify(document.querySelector('.selactions__delete').click() ?? null)")
     time.sleep(0.6)
     armed = d.state()["selAction"]
@@ -253,20 +320,61 @@ def main():
     print(f"  database rows: {before + 2} -> {after} (started at {before})")
     check("exactly the two throwaway rows are gone", after, before)
     # Polled, not read once. The delete lands in the database first and the list re-renders after the
-    # bridge answer arrives, so a single read can catch the middle of that: this check reported
-    # "the view shrank too: got 1, want 2" once and passed on an immediate re-run — the same
-    # intermittent class as the 「点第二行没勾上」 note in docs/M8-STATUS.md §9.0. Polling keeps the
-    # assertion (the view must end up matching the database) without the race.
+    # bridge answer arrives, so a single read can catch the middle of that.
+    #
+    # The expected value is `before_rows + 2` — the two fixture rows are gone and the device's own rows
+    # remain. The first version compared against `before_rows`, which is the count *before the fixtures
+    # were created*; on an emulator with no alarms of its own that demanded 2 rows survive a delete that
+    # correctly removed them, so it failed while everything else passed.
+    expected_rows = before_rows + 2 - 2  # fixtures created (+2) then deleted (-2)
     rows_now = st["rows"]
     for _ in range(10):
-        if rows_now == before_rows:
+        if rows_now == expected_rows:
             break
         time.sleep(0.4)
         rows_now = d.state()["rows"]
-    check("the view shrank too", rows_now, before_rows)
+    check("the view shrank back to the device's own rows", rows_now, expected_rows)
     check("no throwaway row is left", len(rows_with_label(d, TEMP_LABEL)), 0)
     check("selection mode ended", st["selMode"], False)
     check("the selection bar is gone", st["selTitle"], None)
+
+    # Belt and braces: whatever the assertions above concluded, make sure this test's rows are gone.
+    #
+    # It deletes **the ids it created** rather than re-discovering them by label. The label lookup goes
+    # through the bridge, and right after a failed delete that read came back as `{}` *persistently*
+    # (six retries, ~8 s) even though the same call worked from a fresh process — so a label-based
+    # cleanup deleted nothing and the leftovers cascaded into the next run. A test that knows what it
+    # created should not have to ask the app to find it again.
+    #
+    # (This is the fixture risk written up in docs/继续-明天.md §4.1: cleanup that can silently do
+    # nothing is worse than no cleanup.)
+    if db_count(d, f"select count(*) from alarms where label='{TEMP_LABEL}'"):
+        if created_ids:
+            print(f"  cleaning up by the ids this run created: {created_ids}")
+            d.eval(
+                "(async()=>JSON.stringify(await window.Capacitor.Plugins.AlarmHub.deleteAlarms("
+                f"{{ids: {json.dumps(created_ids)}}})))()"
+            )
+            time.sleep(1.5)
+        # Fallback for the case where creation itself did not report ids back.
+        if db_count(d, f"select count(*) from alarms where label='{TEMP_LABEL}'"):
+            leftovers = d.eval_list(
+                "JSON.stringify((async()=>{const r=await window.Capacitor.Plugins.AlarmHub.listAlarms();"
+                f"return r.alarms.filter(a => a.label === {json.dumps(TEMP_LABEL)}).map(a => a.id);}})())"
+            )
+            if leftovers:
+                print(f"  fallback: cleaning up {leftovers} by label lookup")
+                d.eval(
+                    "(async()=>JSON.stringify(await window.Capacitor.Plugins.AlarmHub.deleteAlarms("
+                    f"{{ids: {json.dumps(leftovers)}}})))()"
+                )
+                time.sleep(1.5)
+    check(
+        "the database has no 自测-可删 rows at the end",
+        db_count(d, f"select count(*) from alarms where label='{TEMP_LABEL}'"),
+        0,
+    )
+    check("and the device's own alarms are untouched", db_count(d), before)
 
     print()
     if FAILURES:
