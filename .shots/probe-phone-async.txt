@@ -1,0 +1,19 @@
+=== JSON.stringify((async()=>1)())
+returncode=1
+stdout=''
+stderr='FAIL: connect ECONNREFUSED 127.0.0.1:9222\n'
+
+=== (async()=>JSON.stringify({a:1}))()
+returncode=1
+stdout=''
+stderr='FAIL: connect ECONNREFUSED 127.0.0.1:9222\n'
+
+=== (async()=>JSON.stringify(await window.Capacitor.Plugins.AlarmHub.listAlarms()))()
+returncode=1
+stdout=''
+stderr='FAIL: connect ECONNREFUSED 127.0.0.1:9222\n'
+
+=== (async()=>{const r=await window.Capacitor.Plugins.AlarmHub.listAlarms(); return JSON.stringify({n: r.alarms.length})})()
+returncode=1
+stdout=''
+stderr='FAIL: connect ECONNREFUSED 127.0.0.1:9222\n'

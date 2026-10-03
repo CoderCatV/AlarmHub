@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Permissions are added alongside the code that uses them (M3 onwards).
+
+      USE_EXACT_ALARM rather than SCHEDULE_EXACT_ALARM: it is granted at install time and cannot be
+      revoked, where SCHEDULE_EXACT_ALARM is withheld by default on Android 14+ for new installs and
+      would cost the user a manual trip to Settings (TECH-STACK §4.3). It is limited by Play policy
+      to alarm/calendar apps; this project is personal-use and not published (PRD risk R5).
+
+      INTERNET is still deliberately absent (PRD §6, AC-15): the WebView is served from the APK's own
+      assets in-process, so nothing needs it. ShellSmokeTest.shellPageLoads guards that.
+    -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Ringing must survive silent mode and Do Not Disturb (PRD FR-4.3.11). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!--
+      M5. Two more permissions, both of them levers the 权限体检页 can only point at if they are
+      declared at all:
+
+      * `SYSTEM_ALERT_WINDOW` is an app-op, not a runtime permission: declaring it is what makes
+        `Settings.ACTION_MANAGE_OVERLAY_PERMISSION` offer this app a switch, and `Settings
+        .canDrawOverlays` is what the 后台弹出界面 row reads on a stock ROM. M4 measured that the
+        overlay permission is the only lever that can make the ring page come up by itself while the
+        device is unlocked (docs/M4-STATUS.md §4.3), so the row is worth having even though the app
+        still works without it (sound never depends on the page).
+      * `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` is what allows the direct 「电池无限制」 dialog
+        instead of dropping the user into the full battery-optimisation list. Play policy limits it
+        to app categories that need it; this project is personal-use and not published (PRD risk R5),
+        and an alarm clock is unambiguously in that category.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!--
+      M5.2. Package visibility: from API 30 an app cannot see, resolve or launch another package
+      unless it is declared here. HyperOS's 自启动 / 应用权限管理 pages live in
+      `com.miui.securitycenter` and are launched as explicit components, so without this element the
+      「一键跳转」 would fail on a Xiaomi phone with `ActivityNotFoundException` — and it would look
+      exactly like "MIUI changed the page name", which is the wrong thing to go and debug.
+
+      The two action strings are declared as well because some MIUI builds answer the action rather
+      than the component.
+    -->
+    <queries>
+        <package android:name="com.miui.securitycenter" />
+        <intent>
+            <action android:name="miui.intent.action.OP_AUTO_START" />
+        </intent>
+        <intent>
+            <action android:name="miui.intent.action.APP_PERM_EDITOR" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".AlarmHubApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!--
+          The ring page (PRD FR-4.3.1 / FR-4.3.2).
+
+          `showWhenLocked` + `turnScreenOn` are declared here as well as set in code: the manifest
+          attributes are what let the activity be launched *onto* the lock screen in the first place
+          when the system starts it from a full-screen intent, before any of our code runs.
+
+          `noHistory` is deliberately NOT set: sending the page to the back must keep the ring alive
+          and the notification tappable, which is the behaviour a phone alarm is expected to have.
+
+          **`excludeFromRecents` used to be set here, and was removed** after a real-device report of
+          an alarm that could not be silenced. The M4 reasoning was "a transient alarm page does not
+          belong in the task switcher" — but the platform also refuses to let the app pull that page to
+          the front while unlocked (docs/M4-STATUS.md §4.3), so excluding it from recents removed the
+          last way for a user to reach it. `MainActivity` now re-opens the page on resume, and leaving
+          the task visible in recents is a second, independent way back. Nothing lingers either way:
+          the page calls `finishAndRemoveTask()` the moment the ring ends.
+        -->
+        <activity
+            android:name=".ring.RingActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=".ring"
+            android:theme="@style/AppTheme.Ring" />
+
+        <!--
+          The ring's sound (TECH-STACK 4.4). `mediaPlayback` because it genuinely plays audio, and
+          because that type is not subject to the Android 14 background-start restrictions that would
+          otherwise refuse to start it at the moment an alarm fires.
+        -->
+        <service
+            android:name=".ring.RingForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!--
+          The notification's 关闭 and 贪睡 actions. Not exported: the only sender is this app's own
+          notification, so nothing else on the device can silence an alarm.
+        -->
+        <receiver
+            android:name=".ring.RingActionReceiver"
+            android:exported="false" />
+
+        <!--
+          Fires when a registered alarm is due. Not exported: the only sender is this app's own
+          AlarmManager registration, so nothing else on the device can invoke it (PRD §5.4 is the
+          second line of defence behind that).
+        -->
+        <receiver
+            android:name=".alarm.AlarmReceiver"
+            android:exported="false" />
+
+        <!--
+          Re-registers every alarm after the events that invalidate registrations (PRD FR-4.5).
+          Also not exported; the system delivers these broadcasts to a non-exported receiver as long
+          as it is declared, which is what `RECEIVE_BOOT_COMPLETED` above enables for the boot case.
+
+          LOCKED_BOOT_COMPLETED is included so alarms survive a reboot the user has not unlocked yet.
+          It requires the app to be direct-boot aware to be useful, which this is not yet — the intent
+          filter is here so the gap is visible rather than implicit (see docs/M3-STATUS.md).
+        -->
+        <receiver
+            android:name=".alarm.SystemEventReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          The M3/M4 test channel used to be declared here, guarded by a signature-level permission.
+          It now lives in src/debug/AndroidManifest.xml, so it is not in the release build at all.
+          That is a stronger guarantee than a permission check, and it means the release manifest has
+          no trace of a receiver nobody should be able to reach. (Apologies for the noise: an XML
+          comment may not contain a double hyphen, and the em-dash substitute used here was exactly
+          that.)
+        -->
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+</manifest>

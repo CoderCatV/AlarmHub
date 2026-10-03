@@ -1,0 +1,110 @@
+M3 acceptance run -- tools/m3-acceptance.ps1
+Captured from an actual run on the dsh_pixel emulator (Pixel 7 / Android 16 / API 36).
+Exit code 0.
+
+=== 1  on-time trigger: PRE front then MAIN at the exact instant
+  -> reset: wipe done
+  -> aligning: waiting 21 s to sit ~12 s into a minute
+  -> injected alarm=60 group=63 registeredAtMillis=1790911440000
+  -> dumpsys alarm mentions com.alarmhub.app : True ; uses setAlarmClock : True
+[PASS] 1 on-time trigger -- PRE=True MAIN=True rescheduled=True dumpsys=True alarmClock=True
+
+=== 2  paused group stays silent (AC-3) + stale pre-pause trigger suppressed (5.4)
+  -> reset: wipe done
+  -> injected alarm=61 group=64 registeredAtMillis=1790911500000
+  -> registeredAtMillis before pause=1790911500000 ; after pause=1790997900000 (a later day)
+[PASS] 2 paused group stays silent -- silentExit=GROUP_PAUSED rang=False replayedStaleTrigger=True
+
+=== 3  permanently disabled group stays silent (GROUP_PERMANENTLY_DISABLED)
+  -> reset: wipe done
+  -> injected alarm=62 group=65 registeredAtMillis=1790911500000
+  -> registeredAtMillis after disable=0 (0 = nothing scheduled)
+[PASS] 3 permanently disabled stays silent -- silentExit=GROUP_PERMANENTLY_DISABLED rang=False
+
+=== 4  pause expiry re-registers by itself and the alarm then rings (AC-4)
+  -> reset: wipe done
+  -> aligning: waiting 5 s to sit ~12 s into a minute
+  -> injected alarm=63 group=66 registeredAtMillis=1790911500000
+  -> ring registered for 1790911500000 ; pausing for 67s
+  -> registeredAtMillis during the pause=1790997900000 ; deferred past the pause=True
+  -> PAUSE trigger fired=True ; re-armed for 1790997900000 (in the future: True)
+[PASS] 4 pause expiry auto-resumes -- deferredPastPause=True pauseTrigger=True reArmedAfterExpiry=True (for 1790997900000)
+
+=== 5  BOOT_COMPLETED and TIME_SET re-register (PRD FR-4.5)
+  -> reset: wipe done
+  -> injected alarm=64 group=67 registeredAtMillis=1790911560000
+  -> registeredAtMillis before the broadcasts=1790911560000
+  -> after BOOT_COMPLETED: registeredAtMillis=1790911560000 bootLog=True
+  -> after TIME_SET: registeredAtMillis=1790911560000 timeLog=True
+[PASS] 5 system events re-register -- bootBroadcast=True timeSetBroadcast=True registeredAfterBoot=True registeredAfterTimeSet=True
+
+========================= summary =========================
+
+Scenario                            Pass Detail
+--------                            ---- ------
+1 on-time trigger                   True PRE=True MAIN=True rescheduled=True dumpsys=True alarmClock=True
+2 paused group stays silent         True silentExit=GROUP_PAUSED rang=False replayedStaleTrigger=True
+3 permanently disabled stays silent True silentExit=GROUP_PERMANENTLY_DISABLED rang=False
+4 pause expiry auto-resumes         True deferredPastPause=True pauseTrigger=True reArmedAfterExpiry=True
+5 system events re-register         True bootBroadcast=True timeSetBroadcast=True registeredAfterBoot=True registeredAfterTimeSet=True
+
+5/5 scenarios passed
+
+--------------------------------------------------------------------------------
+Supporting raw evidence, quoted from `adb logcat` and `adb shell dumpsys alarm` in
+the same session. This part is NOT produced by the harness -- it is the source data
+every assertion above was checked against.
+
+[1] A live alarm: PRE front, then MAIN 7 ms late, then re-registration for tomorrow.
+
+    10-02 01:50:51.361  AlarmHub/Scheduler: scheduled alarm=1 at=2026-10-02T01:51Z[GMT] pre=2026-10-02T01:50:55Z[GMT] pauseUntil=null
+    10-02 01:50:56.364  AlarmHub/Receiver: alarm=1 PRE validated for 1790905860000 - the MAIN trigger rings at the exact time
+    10-02 01:51:00.007  AlarmHub/Receiver: alarm=1 kind=MAIN RING VALIDATED at 1790905860000 (the ring flow itself lands at M4)
+    10-02 01:51:00.024  AlarmHub/Scheduler: scheduled alarm=1 at=2026-10-03T01:51Z[GMT] pre=2026-10-03T01:50:55Z[GMT] pauseUntil=null
+
+    The registered instant was 01:51:00.000 and the trigger was delivered at 01:51:00.007,
+    so the error against the target minute is 7 ms.
+
+[2] The same registrations seen from the system's side. The MAIN entry carries an
+    "Alarm clock:" section and a showIntent (that is setAlarmClock, which also drives the
+    status-bar icon); the PRE entry does not (that is setExactAndAllowWhileIdle, which is
+    what keeps the icon from advertising a time 5 seconds early -- PRD 5.7).
+
+    RTC_WAKEUP #3: Alarm{314d78c type 0 origWhen 1790906460000 com.alarmhub.app}
+      tag=*walarm*:com.alarmhub.app.action.ALARM_TRIGGER
+      type=RTC_WAKEUP origWhen=2026-10-02 02:01:00.000 window=0 exactAllowReason=policy_permission
+      Alarm clock:
+        triggerTime=2026-10-02 02:01:00.000
+        showIntent=PendingIntent{bd49ed5: PendingIntentRecord{faab6ea com.alarmhub.app startActivity}}
+      operation=PendingIntent{2675ddb: PendingIntentRecord{6fde078 com.alarmhub.app broadcastIntent}}
+
+    RTC_WAKEUP #4: Alarm{94d5351 type 0 origWhen 1790906455000 com.alarmhub.app}
+      tag=*walarm*:com.alarmhub.app.action.ALARM_TRIGGER
+      type=RTC_WAKEUP origWhen=2026-10-02 02:00:55.000 window=0 exactAllowReason=policy_permission
+      operation=PendingIntent{... com.alarmhub.app broadcastIntent}}
+
+[3] The pause-expiry path verbatim -- what scenario 4 asserts:
+      the pause defers the covered ring to the next day; the PAUSE trigger fires on its
+      own at the resume moment; the alarm is then re-armed for the future.
+
+    03:16:15.776  alarm=54 groupPauseUntil=null           floor=03:16:15.773  next=2026-10-02T03:17Z
+    03:16:15.779  scheduled alarm=54 at=2026-10-02T03:17Z pre=2026-10-02T03:16:55Z  pauseUntil=null
+    03:16:18.994  alarm=54 groupPauseUntil=03:17:20.986   floor=03:17:20.986  next=2026-10-03T03:17Z
+    03:16:19.000  scheduled alarm=54 at=2026-10-03T03:17Z pre=2026-10-03T03:16:55Z  pauseUntil=2026-10-02T03:17:20.986Z
+    03:17:21.008  AlarmHub/Receiver: alarm=54 PAUSE trigger at 1790911041008 - recomputing now that the pause has ended
+    03:17:21.032  scheduled alarm=54 at=2026-10-03T03:17Z pre=2026-10-03T03:16:55Z  pauseUntil=2026-10-02T03:17:20.986Z
+
+[4] The defect this milestone's acceptance caught (docs/M3-STATUS.md 3.1). Before the fix,
+    the pause-expiry trigger was run through PRD 5.4's validation and fell into the ring
+    branch -- so at M4 every pause expiry would have rung the phone:
+
+    02:12:12.588  AlarmHub/Receiver: alarm=20 kind=PAUSE RING VALIDATED at 1790993520000 (the ring flow itself lands at M4)
+
+    After the fix the trigger is routed before validation, and the log says so:
+
+    alarm=41 PAUSE trigger at 1790909654478 - recomputing now that the pause has ended
+
+[5] Deletion, seen by a stale trigger (PRD 5.4's first line): the row is gone, so the
+    receiver exits without rescheduling anything.
+
+    01:57:00.009  AlarmHub/Receiver: alarm=4 kind=MAIN SILENT EXIT reason=ALARM_GONE scheduledAt=null

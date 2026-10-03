@@ -1,0 +1,2 @@
+device=b9026932 webview pid=28234
+could not reach the editor (title=''); the wheel is not on screen

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+    </style>
+
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+    </style>
+
+    <!--
+      The ring page (PRD FR-4.3.1). Its own theme rather than AppTheme.NoActionBar, which is
+      DayNight: an alarm page that turned light because the phone is in light mode would glare in a
+      dark bedroom. The page is always dark, which is also what the H5 dark theme looks like.
+
+      No action bar, and the window background matches the page so there is no light flash between
+      the window appearing and the first frame being drawn.
+    -->
+    <style name="AppTheme.Ring" parent="Theme.AppCompat.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/ring_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The ring page's chip background is declared as a shape drawable in res/drawable/. There are no
+      value-level drawable aliases here on purpose: an alias in values/ only adds a level of
+      indirection when the layout can reference the shape directly.
+    -->
+</resources>

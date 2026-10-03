@@ -1,0 +1,26 @@
+{
+  "name": "alarmhub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "闹钟坞 (AlarmHub) —— 按场景整组暂停的本地闹钟",
+  "scripts": {
+    "web:dev": "vite --config web/vite.config.ts",
+    "web:build": "vite build --config web/vite.config.ts",
+    "web:typecheck": "vue-tsc --noEmit -p web/tsconfig.json",
+    "android:sync": "cap sync android",
+    "android:build": "cd android && gradle assembleDebug --console=plain",
+    "android:run": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "~5.9",
+    "vite": "^8.3.2",
+    "vue-tsc": "^3.3.11"
+  }
+}

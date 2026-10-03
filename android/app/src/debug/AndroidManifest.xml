@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only manifest.
+
+  Everything here exists so the alarm behaviours can be driven and read from adb: an alarm that only
+  rings at 07:00 is not testable otherwise, and M4's acceptance ("does it ring, does snooze work, does
+  timeout stop it") cannot be shown any other way.
+
+  None of it is in the release build. That is deliberate and is the reason this file exists rather
+  than a permission guard in the main manifest: a release APK should not contain a receiver that can
+  make the alarm ring, not even one that is hard to call.
+
+  The receiver is still protected by a signature-level permission, so on a device with both a debug
+  and a release build of this app installed, only the same-key one can drive it.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <permission
+        android:name="com.alarmhub.app.permission.DEBUG"
+        android:protectionLevel="signature"
+        android:label="AlarmHub debug" />
+
+    <application>
+        <receiver
+            android:name=".debug.DebugReceiver"
+            android:exported="true"
+            android:permission="com.alarmhub.app.permission.DEBUG">
+            <intent-filter>
+                <action android:name="com.alarmhub.app.debug.COMMAND" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

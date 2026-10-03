@@ -1,0 +1,46 @@
+# 交付文件清单（含真机反馈后的全部修复）
+# 生成时间: 2026-10-02 16:54:17
+# 工作区不是 git 仓库（git status -> fatal: not a git repository），因此用这份哈希清单代替 git diff --stat
+
+## web/src —— 全部文件（path  bytes  sha256）
+web/src/App.vue  2252  53d32a6691e964728e1c31894a4f30e5935ae6597e5514441b17826c20cea448
+web/src/main.ts  418  f368b0c6c87568351dbc49ed04f445b55ac12456c3ccf3652381e9dd23fbcdfc
+web/src/bridge/index.ts  5117  7d8d759b515f45355da6df9d7db63b72851c98d68641bcdd0b3264bcf8027f2a
+web/src/bridge/mock.ts  18031  d3c77aa6c9f9c384e9d676e1fb68ab477c74448274fc1fab001df217da8d08c8
+web/src/bridge/types.ts  9117  7463733b1f90ec4055c41e2ce255798be16d6550c54232bf51bda4b7f5c5f4b6
+web/src/components/AlarmRow.vue  3780  7574400ecaab932d8db26b78167ca2184d84d397d2d5d84ce9c1fd557940bbfe
+web/src/components/FormRow.vue  1397  52019cd1a72ed4158229964fc889c326e416e22978dbcb13cc97b320e63c59ec
+web/src/components/GroupSection.vue  5133  bb133a0e4346be16acc547e667034254c96b536e925c2e4835a70a2beb1ff501
+web/src/components/PauseSheet.vue  8676  3d726b7a59958400ee88c1df20903f154194c39434036e5211aa7603dbe6880b
+web/src/components/PermissionBanner.vue  2038  3369fa9b781bc0564b3e11e96d0a1038b015855845096cd834a4b4e2dd0f6162
+web/src/components/PermissionGuide.vue  4019  fc570b734f71bcd45c6422c91ba34b072e42fd27d840f657eba0ada2451f2b58
+web/src/components/ToggleSwitch.vue  1415  0af061c9098148a71500fcb112934875d1bb042c470f2123083b94478f6d48aa
+web/src/components/WheelTimePicker.vue  12037  ef9de47de3a3cc2b93594021bdd23a748775236d8980548979f2a7630363041d
+web/src/pages/AlarmEditorPage.vue  20593  d5927cc6402a448aeca96c751d6c54764d413596a7bc9756a75bccf6dc8451ad
+web/src/pages/AlarmListPage.vue  10636  3b0ef209177f300e4e554f8c8eebc80ff11f43d0d99ea44dcfbeee7cbd5f891e
+web/src/pages/GroupsPage.vue  13908  e765fc82a71c0462ad310b8109fbfb504f52d6ed2acdfba58d77622ec8a200a3
+web/src/pages/PermissionsPage.vue  7984  7773370d076329d205aa33cbd19e8b17b5cc5099f27dc929126a53d35a33f2cc
+web/src/pages/SettingsPage.vue  14164  92b04877c4a81d3cca3c4d33e5cd1a7ae55c6bb00d4aa8568af2d981d60724fd
+web/src/state/nav.ts  583  a700f3bed56cf81aa84ad23fe33a3af697668aac4c23ad941d4ae47894de8d9b
+web/src/state/store.ts  11096  5b8ee5d8c37bb34506555d16fce6daa7c318cb487cea50fe08133d713114655f
+web/src/styles/base.css  1173  9296b3c349d39cadffa523e07f2fa8925d717e1a9a30cc0503055c85326f6055
+web/src/styles/tokens.css  2989  23d4295b57c93bc30b32a46cb66251e121d7d34041e7cc3f2e773111672a8393
+web/src/utils/color.ts  1165  dd90b5df3c3861cc9ddc0bb23a770b4526a8c44dce621fa670f35616749c7290
+web/src/utils/format.ts  5364  289f32444d5499b0b75eb72e1d3fe85c9d95fa013004453795e9edf17558ff01
+
+## android / tools —— 本次新增或修改的文件
+android/app/src/main/AndroidManifest.xml  8981  d92ad5b4b2b62afb97133880217f8c116689b33b5fe97a000a1602597c6816eb
+android/app/src/main/java/com/alarmhub/app/AlarmHubApp.kt  6075  8ce5c7902b3b6a768c6fe8c6957fa589551f0654b22d27b93ce269dbd954aad6
+android/app/src/main/java/com/alarmhub/app/bridge/AlarmHubPlugin.kt  27674  61a960a6a227300e5cdc730e80251ea1ccc57396ec4814f3306779ddc223fd09
+android/app/src/main/java/com/alarmhub/app/bridge/BridgeJson.kt  13616  29ddcc94b37bbec782f532a6ec1922ae5901ee7fd6a6162edad3d7a9d790651f
+android/app/src/main/java/com/alarmhub/app/data/db/AppDatabase.kt  3629  727507ac3ab7e2b796068bdf8bcc6105b72e441062bbc07bc0e139b700fee4e4
+android/app/src/main/java/com/alarmhub/app/domain/model/Alarm.kt  5289  d3cad10f92d6fc52082a9e9d1f506644904efb34d9f87d5822c4d47e14eac567
+android/app/src/main/java/com/alarmhub/app/permissions/PermissionModels.kt  1850  1f5b83e8353893260be5f69605536159b3aa1db567e5e3ab7facf68d7c093d82
+android/app/src/main/java/com/alarmhub/app/permissions/PermissionInspector.kt  17833  80c8cf8769385d6d3c85bb976f2175d98a06c1cab0109ea70f81c294ae1a720e
+android/app/src/main/java/com/alarmhub/app/permissions/PermissionSettingsLauncher.kt  10540  9dfe2b7ef0fb04abb59ee3c8ab56f0402a78eff7b4119e1762b099bbf67fb52f
+android/app/src/debug/java/com/alarmhub/app/debug/DebugReceiver.kt  28070  cda253c083e4123ce0973a06c786692df09ec7bcac96dbe8e90a076fe50f3006
+android/app/src/androidTest/java/com/alarmhub/app/data/db/MigrationTest.kt  12626  753986a4c7b68ea0a071f905b3fc984592103b1c70d568824f4598d9b01fe7a8
+tools/m3-acceptance.ps1  20169  d5ded951b0e69e2a521a162577d2d3cd464b439b64cec04a915cfd9a7f9c34e6
+
+## 交付 APK
+android/app/build/outputs/apk/debug/app-debug.apk  20824895  95b3e6f8f2643c4cace2cedafd51a712dc382cb85ef3c4fbc26e96a36844f6dc   built 2026-10-02 16:52:11

@@ -1,0 +1,30 @@
+ext {
+    // Android 12+. TECH-STACK.md §9.1: this drops the notification-channel, showWhenLocked
+    // and startForegroundService compatibility branches entirely.
+    minSdkVersion = 31
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+    androidxActivityVersion = '1.11.0'
+    androidxAppCompatVersion = '1.7.1'
+    androidxCoordinatorLayoutVersion = '1.3.0'
+    androidxCoreVersion = '1.17.0'
+    androidxFragmentVersion = '1.8.9'
+    coreSplashScreenVersion = '1.2.0'
+    androidxWebkitVersion = '1.14.0'
+    junitVersion = '4.13.2'
+    androidxJunitVersion = '1.3.0'
+    androidxEspressoCoreVersion = '3.7.0'
+    cordovaAndroidVersion = '14.0.1'
+
+    // ---- AlarmHub additions ------------------------------------------------------------
+    // Kotlin itself is pinned in android/build.gradle (buildscript{ ext.kotlin_version }),
+    // not here, because buildscript{} is hoisted and cannot see this file.
+    //
+    // Locked at M0 (see docs/DEVELOPMENT-PLAN.md M0.1). Room and KSP are declared now so the
+    // decided versions are recorded, but their plugins are only applied at M3 — M0 does not
+    // need them, and keeping M0 small is the point.
+    coroutinesVersion = '1.10.2'
+    roomVersion = '2.8.5'
+    kspVersion = '2.2.21-2.0.5'   // must track kotlin_version above
+    lifecycleVersion = '2.9.4'
+}

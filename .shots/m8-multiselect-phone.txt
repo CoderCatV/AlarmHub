@@ -1,0 +1,59 @@
+device=b9026932 via=cdp
+  webview pid=28234
+== navigate to the list ==
+  page: list
+== cleanup ==
+== baseline ==
+  database rows: 0, list rows: 0
+== create two throwaway alarms labelled '自测-可删' ==
+  [OK ] the database grew by two: 2
+  [OK ] and both show up in the list: 2
+  [OK ] still out of selection mode: False
+  [OK ] still showing the clock hero: True
+== a scroll must NOT start a selection ==
+  [OK ] still out of selection mode after a scroll: False
+== long press the first throwaway row ==
+  [OK ] selection mode on: True
+  [OK ] one row ticked: 1
+  [OK ] header counts it: '已选择 1 项'
+  [OK ] action bar appeared: '删除'
+  [OK ] the FAB is hidden: False
+  the long-pressed row: y=543.546875 before, y=543.546875 after
+  [OK ] the long-pressed row did not move: 543.546875
+  hero rect=[0, 0, 400, 208]  selection bar rect=[0, 0, 400, 208]
+  [OK ] the bar covers the hero exactly, so nothing above the list resizes: [0, 0, 400, 208]
+  ticked rows: ['03:07 自测-可删']
+== tapping the second throwaway row accumulates ==
+  [OK ] two rows ticked: 2
+  ticked rows: ['03:07 自测-可删', '04:07 自测-可删']
+== select all / select none ==
+  [FAIL] select-all ticks every row: 0  (want 2)
+  [FAIL] the toggle now offers the opposite: '全选'  (want '取消全选')
+  [FAIL] select-none clears the ticks: 2  (want 0)
+  [OK ] but stays in selection mode: True
+  [FAIL] and disables the delete button: False  (want True)
+  [OK ] nothing deleted by the toggle: 2
+== pick both throwaway rows again and delete them in two steps ==
+  [FAIL] both picked: 0  (want 2)
+  after the first tap the button reads: '删除'
+  [FAIL] first tap only arms the button: False  (want True)
+  [OK ] nothing deleted yet: 2
+  database rows: 2 -> 2 (started at 0)
+  [FAIL] exactly the two throwaway rows are gone: 2  (want 0)
+  [FAIL] the view shrank too: 2  (want 0)
+  [FAIL] no throwaway row is left: 2  (want 0)
+  [FAIL] selection mode ended: True  (want False)
+  [FAIL] the selection bar is gone: '已选择 0 项'  (want None)
+
+FAILED (11):
+  - select-all ticks every row: got 0, want 2
+  - the toggle now offers the opposite: got '全选', want '取消全选'
+  - select-none clears the ticks: got 2, want 0
+  - and disables the delete button: got False, want True
+  - both picked: got 0, want 2
+  - first tap only arms the button: got False, want True
+  - exactly the two throwaway rows are gone: got 2, want 0
+  - the view shrank too: got 2, want 0
+  - no throwaway row is left: got 2, want 0
+  - selection mode ended: got True, want False
+  - the selection bar is gone: got '已选择 0 项', want None

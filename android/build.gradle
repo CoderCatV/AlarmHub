@@ -1,0 +1,72 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+
+    // Single source of truth for the Kotlin version. It has to live *inside* buildscript{}
+    // because Gradle hoists that block: the `apply from: "variables.gradle"` further down
+    // this file has not run yet when these dependencies are resolved.
+    //
+    // 2.2.21 rather than the newer 2.3.x line on purpose: 2.2.x is the pairing AGP 8.13 is
+    // tested against, and KSP still publishes an unambiguous "<kotlin>-<ksp>" version for
+    // it. KSP switched to standalone versioning at 2.3.x, which makes the pairing opaque.
+    ext.kotlin_version = '2.2.21'
+
+    // KSP's version has to be pinned here, next to the Kotlin version it must match, and not in
+    // variables.gradle: this block is hoisted, so it is evaluated before that file is applied.
+    // The "<kotlin>-<ksp>" shape is exactly why 2.2.x was chosen over 2.3.x (see the comment above).
+    ext.ksp_version = '2.2.21-2.0.5'
+
+    repositories {
+        // Domestic mirrors first (China network), upstream as fallback.
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.google.gms:google-services:4.4.4'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.google.devtools.ksp:symbol-processing-gradle-plugin:$ksp_version"
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        google()
+        mavenCentral()
+    }
+
+    // kotlin-stdlib-jdk7 and kotlin-stdlib-jdk8 were folded into kotlin-stdlib in Kotlin 1.8:
+    // from 1.8.0 those two artifacts are relocation-only modules with no classes of their own.
+    // Espresso still drags in the ancient 1.6.21 copies, which *did* contain real stdlib
+    // classes, so any androidTest classpath holding both fails with
+    //   Duplicate class kotlin.collections.jdk8.CollectionsJDK8Kt found in modules
+    //   kotlin-stdlib-1.8.22.jar and kotlin-stdlib-jdk8-1.6.21.jar
+    //
+    // This has to sit here rather than in app/build.gradle: the Capacitor library modules have
+    // their own androidTest classpaths (note :capacitor-cordova-android-plugins:
+    // checkDebugAndroidTestDuplicateClasses) that an app-module-only rule cannot reach.
+    //
+    // Pinning jdk7/jdk8 at 1.8.22 keeps them as pure relocations; kotlin-stdlib follows the
+    // Kotlin version we actually compile with.
+    configurations.all {
+        resolutionStrategy {
+            force "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

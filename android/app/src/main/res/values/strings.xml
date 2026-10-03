@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">闹钟坞</string>
+    <string name="title_activity_main">闹钟坞</string>
+    <string name="package_name">com.alarmhub.app</string>
+    <string name="custom_url_scheme">com.alarmhub.app</string>
+</resources>

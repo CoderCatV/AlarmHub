@@ -1,0 +1,127 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+// KSP generates the Room DAO implementations at build time (M3).
+apply plugin: 'com.google.devtools.ksp'
+
+android {
+    namespace = "com.alarmhub.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+
+    // Keep the debug signing material inside the repository: the default location
+    // (<user home>/.android/debug.keystore) sits outside the sandboxed workspace,
+    // and AGP needs to create a .lock file next to it on every build.
+    signingConfigs {
+        debug {
+            storeFile file('../debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.alarmhub.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    // capacitor.build.gradle pins source/targetCompatibility to Java 21, so Kotlin has to
+    // emit 21 as well or the build fails with "Inconsistent JVM-target compatibility".
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+
+    // Room's exported schema JSON is a build output, but it is meant to be *committed*: it is what
+    // makes a future migration reviewable and checkable instead of a guess. Shipping it to
+    // androidTest's assets is the arrangement Room's own MigrationTestHelper expects.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+// Room's processor arguments have to be handed to KSP itself. `android.defaultConfig
+// .javaCompileOptions.annotationProcessorOptions` only reaches javac-based processors, so a
+// room.schemaLocation set there is silently ignored by a KSP build and no schema is exported.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Room's schema JSON is a build output, but it is meant to be committed: without it a future
+// migration cannot be validated by Room's own test helper, and `exportSchema = false` would hide
+// exactly the drift the export exists to catch.
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.core:core-ktx:$androidxCoreVersion"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
+
+    // The ring page observes RingController's StateFlow with repeatOnLifecycle, which only stops
+    // collecting while the page is in the background (M4). Declared explicitly rather than relied on
+    // transitively through appcompat: it is a direct API dependency of RingActivity.
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion"
+
+    // ---- M3: data layer and scheduling engine -------------------------------------------
+    implementation "androidx.room:room-runtime:$roomVersion"
+    implementation "androidx.room:room-ktx:$roomVersion"
+    ksp "androidx.room:room-compiler:$roomVersion"
+
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    // The in-memory Room database used by the instrumentation tests is real Android code, so it
+    // cannot run on the JVM; Robolectric is deliberately not used here (see docs/M3-STATUS.md).
+    //
+    // `room-testing` is deliberately NOT a dependency. It is only needed for `MigrationTestHelper`,
+    // which pulls in `room-migration` -> `kotlinx-serialization-json`, and that family cannot be kept
+    // version-consistent on this classpath (the app pins kotlinx-serialization-core elsewhere, and the
+    // helper then dies with an AbstractMethodError in `FieldBundle$$serializer` instead of reporting
+    // anything about the migration). `MigrationTest` builds the v1 database with raw SQL instead and
+    // drives the real `AppDatabase.build`, which tests the production path more directly anyway.
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+// The kotlin-stdlib / kotlin-stdlib-jdk7 / kotlin-stdlib-jdk8 pinning lives in the root
+// build.gradle's `allprojects` block, because it also has to cover the Capacitor library
+// modules' androidTest classpaths. See the comment there.
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

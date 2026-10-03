@@ -1,0 +1,131 @@
+/**
+ * Design tokens.
+ *
+ * Theme is resolved in JS (settings.theme: system | dark | light) and written to
+ * `<html data-theme="dark|light">`, so CSS only needs the two blocks below — no
+ * prefers-color-scheme media query duplication.
+ *
+ * The visual target is HyperOS: near-black neutral background, one rounded card per
+ * grouping, very large time numerals, generous vertical rhythm, and colour used only to
+ * signal group identity and state.
+ */
+
+:root,
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0b0f14;
+  --surface: #141a22;
+  --surface-2: #1b232e;
+  --surface-3: #232d3a;
+  --border: #232d3a;
+  --border-strong: #33404f;
+
+  /* text */
+  --text: #eaf0f8;
+  --text-dim: #93a3b8;
+  --text-faint: #62728a;
+
+  /* accents and state */
+  --accent: #4c9dff;
+  --accent-ink: #04121f;
+  --ok: #38c98a;
+  --warn: #ffb547;
+  --danger: #ff6b6b;
+
+  /* state tints (12–18% of the base colour, for badges and dimmed rows) */
+  --tint-ok: #38c98a26;
+  --tint-warn: #ffb54726;
+  --tint-danger: #ff6b6b26;
+  --tint-accent: #4c9dff26;
+
+  /* dimming for paused / disabled / expired rows */
+  --dim-opacity: 0.42;
+
+  --shadow-sheet: 0 -18px 48px #00000073;
+  --scrim: #000000a6;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --surface-3: #e4e9f1;
+  --border: #e2e7ef;
+  --border-strong: #ccd4e0;
+
+  --text: #131820;
+  --text-dim: #5d6a7e;
+  --text-faint: #8b97a8;
+
+  --accent: #1a73e8;
+  --accent-ink: #ffffff;
+  --ok: #12a06a;
+  --warn: #c47a00;
+  --danger: #d93b3b;
+
+  --tint-ok: #12a06a1f;
+  --tint-warn: #c47a001f;
+  --tint-danger: #d93b3b1f;
+  --tint-accent: #1a73e81f;
+
+  --dim-opacity: 0.46;
+
+  --shadow-sheet: 0 -18px 48px #1b24331f;
+  --scrim: #1018224d;
+}
+
+:root {
+  /* type scale */
+  --fs-clock: 40px; /* the time numerals in a list row */
+  --fs-xl: 28px;
+  --fs-lg: 20px;
+  --fs-md: 16px;
+  --fs-sm: 14px;
+  --fs-xs: 12.5px;
+  --fs-2xs: 11.5px;
+
+  --lh-tight: 1.15;
+  --lh-normal: 1.5;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* radius */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* layout */
+  --page-x: 16px;
+  --row-gap: 2px;
+  --tap-min: 44px;
+
+  /* Notch / gesture bar.
+     Capacitor's SystemBars plugin injects --safe-area-inset-* because Android WebView's
+     env() support is inconsistent, so prefer its values and fall back to env(). Note the
+     plugin occasionally injects before the document root exists and logs a harmless
+     "Error injecting safe area CSS" — the env() fallback covers that case. */
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}

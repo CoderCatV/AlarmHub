@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PRD FR-4.3.1: the ring page shows the current time large, the label, the group and the date.
+
+  Built from plain View widgets rather than Compose (TECH-STACK §4.5): this is the one page that has
+  to appear instantly, and pulling in the Compose runtime for a single screen buys nothing.
+
+  **Layout shape, and why.** The auto-stop timer removes the page after `autoStopMinutes`, so it does
+  not scroll; and the vertical space is distributed with weighted spacers rather than one top block,
+  because the ringing notification is `ongoing` and its heads-up card sits over the top ~430 px for
+  the whole ring. Anything pinned to the very top of the page would be hidden behind it — which is
+  exactly what happened to the clock before this was restructured.
+
+  `ring_root` carries the system-bar insets, so the content stays clear of the notification card and
+  of the gesture bar while the window itself still fills the screen and turns the display on.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ring_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ring_background"
+    android:orientation="vertical"
+    android:paddingStart="28dp"
+    android:paddingEnd="28dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="28dp">
+
+    <!-- Weighted spacer: keeps the clock out from under the notification card. -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- 当前时间（大字） -->
+    <TextView
+        android:id="@+id/ring_clock"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:includeFontPadding="false"
+        android:letterSpacing="-0.02"
+        android:textColor="@color/ring_text_primary"
+        android:textSize="76sp"
+        android:textStyle="bold"
+        android:text="07:05" />
+
+    <!-- 日期 -->
+    <TextView
+        android:id="@+id/ring_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_horizontal"
+        android:textColor="@color/ring_text_secondary"
+        android:textSize="15sp"
+        android:text="10月2日 周四" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- 标签 -->
+    <TextView
+        android:id="@+id/ring_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center_horizontal"
+        android:includeFontPadding="false"
+        android:maxLines="2"
+        android:textColor="@color/ring_text_primary"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:text="起床上班" />
+
+    <!-- 所属分组：小圆点用分组标识色，名字在胶囊里 -->
+    <LinearLayout
+        android:id="@+id/ring_group_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/ring_chip_shape"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="7dp"
+        android:paddingBottom="7dp">
+
+        <View
+            android:id="@+id/ring_group_dot"
+            android:layout_width="9dp"
+            android:layout_height="9dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/ring_group_dot_shape" />
+
+        <TextView
+            android:id="@+id/ring_group_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ring_text_secondary"
+            android:textSize="14sp"
+            android:text="工作日" />
+    </LinearLayout>
+
+    <!-- 状态行：贪睡剩余次数 / 超时自动停止 / 贪睡中 -->
+    <TextView
+        android:id="@+id/ring_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="26dp"
+        android:gravity="center_horizontal"
+        android:lineSpacingExtra="4dp"
+        android:textColor="@color/ring_text_tertiary"
+        android:textSize="13sp"
+        android:text="贪睡 10 分钟，还剩 3 次" />
+
+    <!--
+      A deliberate warning surface rather than decoration: if the alarm stream volume is zero, or the
+      notification permission is missing, the user gets a silent or invisible alarm and needs to know
+      why. Filled in by RingActivity; hidden when there is nothing wrong.
+    -->
+    <TextView
+        android:id="@+id/ring_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="#33FF8A5C"
+        android:gravity="center"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textColor="#FFD9C2"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:text="" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!--
+      上滑关闭 (M8). Borrowed from MIUI's own lock-screen ring page, which uses a swipe instead of a
+      button there for a reason that applies here too: on a lock screen the finger's position is not
+      known, and a swipe up from anywhere always reaches — where a 60dp button has to be aimed at.
+
+      The 关闭 button stays. Swipe is an addition, not a replacement: a page that only answers to a
+      gesture is unusable by anyone who does not guess that the gesture exists, and this line is what
+      says it does.
+    -->
+    <TextView
+        android:id="@+id/ring_swipe_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:gravity="center_horizontal"
+        android:textColor="@color/ring_text_tertiary"
+        android:textSize="13sp"
+        android:text="↑ 上滑关闭闹钟" />
+
+    <!-- 贪睡：主按钮（PRD FR-4.3.3） -->
+    <Button
+        android:id="@+id/ring_snooze"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@drawable/ring_button_primary"
+        android:stateListAnimator="@null"
+        android:textAllCaps="false"
+        android:textColor="#0B0E13"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:text="贪睡 10 分钟" />
+
+    <!-- 关闭 -->
+    <Button
+        android:id="@+id/ring_dismiss"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/ring_button_secondary"
+        android:stateListAnimator="@null"
+        android:textAllCaps="false"
+        android:textColor="@color/ring_text_primary"
+        android:textSize="17sp"
+        android:text="关闭" />
+
+    <!-- 音量键行为提示（PRD FR-4.3.6） -->
+    <TextView
+        android:id="@+id/ring_volume_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center_horizontal"
+        android:textColor="@color/ring_text_tertiary"
+        android:textSize="12sp"
+        android:text="音量键：贪睡" />
+</LinearLayout>

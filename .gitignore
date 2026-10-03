@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------------------
+# Build output and tool caches.
+#
+# This project keeps its toolchain state inside the checkout (`.gradle-home`, `.npm-cache`)
+# so that the environment is reproducible from `tools/env.ps1` -- but that state is 900 MB
+# of machine-specific cache, not source. None of it belongs in the repository.
+# ---------------------------------------------------------------------------------------
+.gradle-home/
+.npm-cache/
+node_modules/
+.gradle/
+.kotlin/
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+__pycache__/
+*.pyc
+
+# ---------------------------------------------------------------------------------------
+# Machine-specific and local-only files
+# ---------------------------------------------------------------------------------------
+# Points Gradle at the SDK path on *this* machine (D:\DevEnv\Android\Sdk).
+android/local.properties
+
+# Android's standard debug signing key. Not a secret in the usual sense -- it is the
+# well-known shared debug key -- but it is a local artifact, and shipping it invites
+# someone to sign a debug build that claims to be ours.
+android/debug.keystore
+*.jks
+*.keystore
+
+# ---------------------------------------------------------------------------------------
+# Third-party binaries that were dumped for analysis, not authored here
+#
+# `.shots/miui-securitycenter.apk` is an 80 MB MIUI system APK pulled off the reporting
+# phone during M5 to work out where its private settings pages live. It is someone else's
+# software; the *findings* are what matter, and they are written down in docs/M5-STATUS.md
+# 5.3. Do not commit it.
+# ---------------------------------------------------------------------------------------
+.shots/*.apk
+
+# ---------------------------------------------------------------------------------------
+# Local run artifacts (not evidence)
+# ---------------------------------------------------------------------------------------
+android/app/release/
+*.hprof

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The dot in front of the group name on the ring page. Its colour is the group's identifier colour,
+  applied at runtime with a background tint, so it is left transparent here.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="@android:color/white" />
+</shape>

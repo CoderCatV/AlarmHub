@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ring page palette.
+
+  Deliberately its own set of constants rather than reusing tokens.css: the ring page is a native
+  Activity and the H5 tokens are not readable from resources. The values below are copied from
+  web/src/styles/tokens.css so the two surfaces look like one product (TECH-STACK §4.5).
+-->
+<resources>
+    <!-- Background: near-black, the same family the H5 dark theme uses. -->
+    <color name="ring_background">#0B0E13</color>
+    <color name="ring_surface">#151A22</color>
+
+    <color name="ring_text_primary">#F2F5F9</color>
+    <color name="ring_text_secondary">#98A2B3</color>
+    <color name="ring_text_tertiary">#5C6675</color>
+
+    <color name="ring_accent">#4C9DFF</color>
+    <color name="ring_accent_pressed">#3B7FCF</color>
+    <color name="ring_dismiss_border">#3A4353</color>
+</resources>
