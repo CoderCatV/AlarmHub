@@ -80,11 +80,19 @@ $head = (git rev-parse HEAD).Trim()
 Ok "已提交 $($head.Substring(0,7))"
 
 # ---- 4. 推送 + 核对 -------------------------------------------------------------------
-# `git push` 把它的进度写到 **stderr**（"To github.com:..."、"* [new branch]"）。
-# 在 `$ErrorActionPreference='Stop'` 下，PowerShell 会把外来的 stderr 当成致命错误并中断脚本 ——
-# 于是"推送成功了但脚本报错退出"。这里把 stderr 正常合并成输出，只认退出码。
-$pushOut = & git push 2>&1 | ForEach-Object { "$_" }
-$pushCode = $LASTEXITCODE
+# `git push` 把进度写到 **stderr**（"To github.com:…"、"* [new branch]"）。脚本开头设了
+# `$ErrorActionPreference='Stop'`，而这个设置管得住外来的 stderr —— 连 `2>&1` 也不行：
+# PowerShell 会先把它当成致命错误中断脚本，于是"推送明明成功了，脚本却报错退出"。
+# 所以下面临时放宽为 Continue，把 stderr 收成普通文本，最后只认退出码。
+$pushOut = @()
+$previous = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    $pushOut = @(& git push 2>&1 | ForEach-Object { "$_" })
+    $pushCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previous
+}
 if ($pushCode -ne 0) {
     $pushOut | ForEach-Object { Info $_ }
     Fail '推送失败（远端 HEAD 未更新；本地提交仍在，修好网络或权限后重跑 git push 即可）'
