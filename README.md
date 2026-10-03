@@ -113,6 +113,22 @@ adb shell am start -n com.alarmhub.app/.MainActivity
 用全局 `gradle`，不要用 `gradlew`（后者每次要在 `GRADLE_USER_HOME` 里解包 439 MB）。
 仓库里没有 `gradlew` 是有意的；`android/app/src/main/assets/public/` 由 `cap sync` 从 `www/` 生成，也不入库。
 
+## 提交与推送
+
+**每完成一个比较重要的节点就推一次**，不要攒到最后一次性提交：攒着的时候，"上次能跑的版本"
+只存在于本机的未提交状态里，而真机验证、数据库迁移这类证据恰恰是丢不起的。
+
+```powershell
+. .\tools\env.ps1
+.\tools\push.ps1 -Message "M9: 上滑关闭闹钟（真机 28/28）"
+```
+
+`tools/push.ps1` 做四件事，顺序是有意的：**乱码检查**（本机控制台是 GBK 代码页，源码走 shell
+文本管道会被毁）→ 列出将要提交的文件并**拒绝**缓存/构建产物/密钥/第三方二进制 → 提交 →
+推送并核对远端 HEAD 与本地一致。只想看会提交什么，加 `-WhatIfOnly`。
+
+分支固定 **`master`**；提交信息写"做了什么 + 怎么验证的"。
+
 ## 验证（不是"跑一下测试"，而是这个项目验证东西的方式）
 
 ```powershell
