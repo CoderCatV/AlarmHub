@@ -20,7 +20,12 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$Message,
+    # Either an inline message, or -MessageFile pointing at a UTF-8 file. **Use the file for anything
+    # with more than one line**: passing multi-line Chinese through a command-line argument gets the
+    # text split on its punctuation and handed to git as pathspecs (`error: pathspec '→ 日志' did not
+    # match any file(s)`), which is how a push failed after the work was already committed.
+    [string]$Message,
+    [string]$MessageFile,
     [switch]$AllowBigFiles,
     [switch]$WhatIfOnly
 )
@@ -32,6 +37,14 @@ Set-Location $root
 function Fail($msg) { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
 function Ok($msg)   { Write-Host "✓ $msg" -ForegroundColor Green }
 function Info($msg) { Write-Host "  $msg" }
+
+if ($MessageFile) {
+    if (-not (Test-Path -LiteralPath $MessageFile)) { Fail "找不到提交信息文件：$MessageFile" }
+    $Message = Get-Content -LiteralPath $MessageFile -Raw -Encoding utf8
+}
+if ([string]::IsNullOrWhiteSpace($Message)) {
+    Fail '需要提交信息：-Message "…"，或多行时用 -MessageFile <文件>'
+}
 
 <#
 .SYNOPSIS
@@ -103,8 +116,17 @@ if ($big -and -not $AllowBigFiles) {
 if ($WhatIfOnly) { Ok '仅检查模式：以上都会提交，未执行'; exit 0 }
 
 # ---- 3. 提交 --------------------------------------------------------------------------
-$commit = Invoke-Native git @('-c', 'i18n.commitEncoding=UTF-8', 'commit', '-q', '-m', $Message)
-if ($commit.Code -ne 0) { $commit.Output | ForEach-Object { Info $_ }; Fail '提交失败' }
+# The message always goes through a **file**, never `-m`. `git commit -m <string>` re-parses the string
+# as an argument list when it contains punctuation, and a multi-line Chinese message came back as
+# `error: pathspec '→ 日志' did not match any file(s) known to git`. A temp file cannot be re-split.
+$messagePath = Join-Path $env:TEMP ("alarmhub-commit-{0}.txt" -f ([guid]::NewGuid().ToString("N")))
+[System.IO.File]::WriteAllText($messagePath, $Message, [System.Text.UTF8Encoding]::new($false))
+try {
+    $commit = Invoke-Native git @('-c', 'i18n.commitEncoding=UTF-8', 'commit', '-q', '-F', $messagePath)
+    if ($commit.Code -ne 0) { $commit.Output | ForEach-Object { Info $_ }; Fail '提交失败' }
+} finally {
+    Remove-Item -LiteralPath $messagePath -ErrorAction SilentlyContinue
+}
 $head = (Invoke-Native git @('rev-parse', 'HEAD')).Output[0].Trim()
 Ok "已提交 $($head.Substring(0,7))"
 
