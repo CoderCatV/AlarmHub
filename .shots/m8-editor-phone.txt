@@ -1,3 +1,25 @@
-device=b9026932 webview pid=28234
+device=b9026932 webview pid=26230
 == open the editor ==
-could not reach the alarm editor
+  新建闹钟
+== the preview is a real countdown, not 「不会响铃」 ==
+  preview: '23 小时 59 分后响铃'
+  [OK ] a brand-new alarm shows a countdown: True
+  [OK ] and it is within the next 48 hours: True
+== it follows the wheel ==
+  preview after 3 rows later: '2 小时 59 分后响铃'
+  [OK ] the line moved when the wheel moved: True
+  [OK ] and moved by 1-4 hours, in the direction the wheel was dragged: True
+== a group can be created here, and ends up selected ==
+  [OK ] the inline input appears: True
+  groups now: ['未分组', '工作日', '节假日', '吃药', '自测分组*']
+  [OK ] the new group is in the list: 1
+  [OK ] and it is the selected one: True
+  [OK ] the input closed itself: False
+  [OK ] the database gained exactly one group: 5
+== typing a name that already exists selects it instead of duplicating ==
+  [OK ] no duplicate was created: 5
+  [OK ] the existing group got selected instead: ['未分组']
+== cleanup ==
+  [OK ] the test group is gone: 4
+
+ALL CHECKS PASSED

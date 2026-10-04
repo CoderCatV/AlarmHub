@@ -1,0 +1,40 @@
+device=b9026932
+  webview pid=26463
+== 0. seed one throwaway alarm (so the 'list must not move' check has a row) ==
+  created: 45
+== 1. the button moved to the top-right, and the old pill is gone ==
+  .menu__button rect: {'x': 344, 'y': 52, 'w': 40, 'h': 40, 'right': 384, 'cx': 364, 'cy': 72}
+  [OK ] the ⋮ button exists: True
+  [OK ] it sits in the right half of the hero: True
+  [OK ] and near the top: True
+  [OK ] the old top-left 「设置」 pill is gone: False
+== 2. opening the menu must not move the list ==
+  first row y: {'y': 503.546875} -> {'y': 503.546875}   hero height: 207.546875 -> 207.546875
+  [OK ] there is a row to measure: True
+  [OK ] the first row did not move: {'y': 503.546875}
+  [OK ] the hero did not change height: 207.546875
+== 3. it lists the three entries, in order ==
+  items: ["分组管理", "权限体检", "设置"]
+  [OK ] three entries: 3
+  [OK ] 第一个是分组管理（核心功能放最近）: ['分组管理']
+  [OK ] 三项及其顺序: ['分组管理', '权限体检', '设置']
+== 4. each entry lands on its page ==
+  clicked 分组管理
+  [OK ] 「分组管理」opens its page: '分组管理'
+  [OK ] and the menu closed behind it (分组管理): False
+  clicked 权限体检
+  [OK ] 「权限体检」opens its page: '权限体检'
+  [OK ] and the menu closed behind it (权限体检): False
+  clicked 设置
+  [OK ] 「设置」opens its page: '设置'
+  [OK ] and the menu closed behind it (设置): False
+== 5. tapping outside closes it; entering selection mode closes it ==
+  [OK ] menu is open: True
+  [OK ] tapping the scrim closed it: False
+  [OK ] menu is open again: True
+  after the long press: selMode=True
+  [OK ] entering selection mode closed the menu: False
+== 6. the seeded alarm is removed ==
+  [OK ] no throwaway alarm left behind: []
+
+ALL CHECKS PASSED

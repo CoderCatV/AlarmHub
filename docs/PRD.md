@@ -370,7 +370,7 @@
   候选是「写操作后重算时顺带判断 + 前台服务内定时器 + `setExactAndAllowWhileIdle` 辅助触发」，
   具体方案进 `TECH-STACK` 后再定。**注意本项会引入一个新的常驻通知渠道**（或复用响铃渠道的低优先级变体），
   渠道重要性必须在 `Application.onCreate` 里就定好（渠道建成后不可升级，`RingNotifications` 已踩过这条）。
-- **✅ 已实现并验证（2026-10-04，模拟器）**。方案就是上面的预判：
+- **✅ 已实现并验证（2026-10-04，模拟器 + 真机）**。方案就是上面的预判：
   `TriggerKind.ALERT`（到点前 1 小时，`setExactAndAllowWhileIdle`）+ 每次 `recomputeAll` 后判一次
   （覆盖开机、改时间、应用更新、任何写入）。"只提示一次"的判据是**记住了上次播报的响铃时刻**
   （`settings.pre_alert_notified_at`，迁移 v3→v4）：
@@ -379,13 +379,15 @@
   - **下一个闹钟移出一小时外 → 把通知撤掉**（否则它会宣称一个 3 小时后的闹钟"即将响铃"）；
   - 独立渠道 `alarmhub_upcoming`（IMPORTANCE_DEFAULT）+ 独立通知 id 1002，不与响铃通知互相覆盖；
   - 通知带「关闭闹钟」动作 → 把该闹钟关掉（`PreRingActionReceiver`）。
-- **证据**：`.shots/t-prealert.py`（模拟器全绿）+ 迁移测试 `migratingFrom3To4…`（断言迁移后是 `NULL`
+- **证据**：`.shots/t-prealert.py`（模拟器 + **真机**全绿；真机转录 `m8-prealert-phone.txt`，`device=b9026932`）
+  + 迁移测试 `migratingFrom3To4…`（断言迁移后是 `NULL`
   而不是 0，否则升级用户会永远收不到提示）。
 - **实现位置**：`alarm/PreRingAlerts.kt`（唯一判定点）、`alarm/AlarmScheduler.kt`（ALERT 注册 +
   重算后判定）、`alarm/AlarmReceiver.kt`（ALERT 分流）、`alarm/PreRingActionReceiver.kt`（关闭动作）。
-- **仍未做（真机）**：在真机上点一次那条通知的「关闭闹钟」。模拟器上无法验证这一步 ——
-  该接收器 `exported="false"`，`adb shell` 的广播只会被 `Enqueued` 而**不会投递**（见
-  [约定](约定.md) 的真机死路一节）。动作的**效果**已在模拟器验过（关掉闹钟 + 通知消失）。
+- **仍未做（真机）**：在真机上**点一次那条通知的「关闭闹钟」**。测试能验到的是这条动作的**效果**
+  （关掉闹钟 + 通知消失，真机已验）；"手指点下去能到达接收器"这一步只能人点 ——
+  该接收器 `exported="false"`，`adb shell` 的广播只被 `Enqueued` 而**不会投递**
+  （见 [约定](约定.md) 的真机死路一节）。
 
 #### FR-7.11 首页右上角三点菜单
 
@@ -416,7 +418,8 @@
   三项顺序为 `分组管理 / 权限体检 / 设置`、三项各自都能落到对应页面、
   点空白处与进入选择模式都会收起。
 - **实现位置**：`web/src/pages/AlarmListPage.vue`（`.menu` / `.menu__scrim` / `.menu__sheet`）+
-  `App.vue`（新增 `@open-groups`）。**真机复验还没做**。
+  `App.vue`（新增 `@open-groups`）。
+- **✅ 真机已验证（2026-10-04）**：`.shots/m8-menu-phone.txt`（`device=b9026932`，ALL CHECKS PASSED）。
 
 ---
 

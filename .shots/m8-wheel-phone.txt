@@ -1,2 +1,44 @@
-device=b9026932 webview pid=28234
-could not reach the editor (title=''); the wheel is not on screen
+device=b9026932 webview pid=25823
+page: '新建闹钟'
+== the column is really tripled ==
+  hour: rendered=72 scrollTop=1728 rect=[110, 152, 84, 240]
+  minute: rendered=180 scrollTop=2976
+  [OK ] hour column renders 3 x 24: 72
+  [OK ] minute column renders 3 x 60: 180
+== the highlight is on the centred row, exactly once on screen ==
+  onScreen=['10', '11', '12', '13', '14']
+  [OK ] the value is marked in every copy: 3
+  [OK ] but only one of those is on screen: 1
+  [OK ] and it is the centred row: '12'
+== one small drag moves exactly one row ==
+  [OK ] a 48px drag advances exactly one hour: 13
+== wrap forward: 23 then one more row ==
+  [OK ] spun to 23: '23'
+  after one row past 23: centred='00' onScreen=['22', '23', '00', '01', '02']
+  [OK ] one row past 23 is 00, not a stop: '00'
+== wrap backward: 00 then one row back ==
+  after one row before 00: centred='23' onScreen=['21', '22', '23', '00', '01']
+  [OK ] one row before 00 is 23, not a stop: '23'
+== spinning one way is monotonic and never runs out ==
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  [OK ] still exactly one highlighted row on screen: 1
+  values seen while spinning forward: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+  [OK ] ten single steps from 00: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+== a long run of spins crosses the boundary several times ==
+  last six: ['11', '12', '13', '14', '15', '16']
+  [OK ] thirty single steps from 10 stayed a clean mod-24 walk: ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16']
+== the minute column wraps too ==
+  [OK ] spun to 58: '58'
+  after three rows past 58: centred='01' onScreen=['59', '00', '01', '02', '03']
+  [OK ] three rows past 58 is 01: '01'
+  [OK ] and three rows back is 58 again: '58'
+
+ALL CHECKS PASSED

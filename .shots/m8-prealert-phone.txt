@@ -1,0 +1,45 @@
+device=b9026932
+  webview pid=27371
+== 0. clean slate ==
+== 1. an alarm 30 minutes out must be announced ==
+  alarm id=46 at 12:38 (30 min out)
+  notification: ('12:38 即将响铃', '自测-预告')
+  [OK ] the heads-up appeared: True
+  the app's next alarm is: '自测-预告'
+  [OK ] the title names the ring time: True
+  [OK ] the title carries the clock: True
+  [OK ] the label is the body: '自测-预告'
+  [OK ] it offers a 关闭闹钟 action: True
+  [OK ] it uses its own channel: True
+== 2. a recompute must not re-announce the same occurrence (FR-7.10.2) ==
+  before: ('12:38 即将响铃', '自测-预告')
+  after:  ('12:38 即将响铃', '自测-预告')
+  [OK ] the same notification is still up, unchanged: ('12:38 即将响铃', '自测-预告')
+  [OK ] and it is still the same occurrence: '12:38 即将响铃'
+== 3. moving the alarm earns a new announcement ==
+  moved to 12:53 (45 min out)
+  notification: ('12:53 即将响铃', '自测-预告')
+  [OK ] the new occurrence is announced: True
+  [OK ] and it names the new time: True
+== 4. an alarm that moves out of the hour takes the notification down ==
+  moved to 15:08 (3 h out)
+  [OK ] the stale 「即将响铃」 is gone: None
+== 5. and moving back inside the hour announces the new instant ==
+  moved to 12:28 (20 min out)
+  notification: ('12:28 即将响铃', '自测-预告')
+  [OK ] announced again: True
+  [OK ] with the new time: True
+== 6. an alarm outside the hour alone announces nothing ==
+  alarm at 14:38 (2.5 h out)
+  [OK ] nothing is announced for an alarm 2.5 hours out: None
+== 7. the 「关闭闹钟」 action switches the alarm off ==
+  alarm id=48 at 12:34
+  [OK ] it was announced before the action: True
+  getAlarm(enabled) -> False
+  [OK ] the alarm is switched off: False
+  [OK ] and the notification went away with it: None
+== cleanup ==
+  [OK ] no test alarm left behind: []
+  [OK ] and no notification either: None
+
+ALL CHECKS PASSED
