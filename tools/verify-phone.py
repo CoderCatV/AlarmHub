@@ -206,6 +206,13 @@ def main() -> int:
           f"{ui.Driver(device, CDP_PORT, 2.75, 0).webview_sockets()}")
     results = []
     for script, label, extra in TESTS:
+        # Cold-start **before every test**, not just once before the suite. Each test leaves its own
+        # screens behind (the multiselect test finishes inside selection mode, the editor test inside the
+        # editor), and the next one starts from whatever it finds: on the phone that produced
+        # `could not reach the editor (title='')` for both the wheel and the editor test — the app was
+        # simply not on the list page, and the failure read as a product problem. Both of those tests
+        # pass on the emulator, which is what pointed at the harness rather than the app.
+        ui.Driver(device, CDP_PORT, 2.75, 0).cold_start()
         transcript = ROOT / ".shots" / (Path(script).stem.replace("t-", "m8-") + "-phone.txt")
         # -u: Python block-buffers stdout when it is redirected, which made a running test look like a
         # hung one and an empty transcript look like a test that produced nothing.
