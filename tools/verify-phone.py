@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import subprocess
 import sys
@@ -205,6 +206,14 @@ def main() -> int:
     print(f"  webview sockets after cold start = "
           f"{ui.Driver(device, CDP_PORT, 2.75, 0).webview_sockets()}")
     results = []
+    # Name transcripts after the **device actually used**, not the word "phone".
+    #
+    # The suffix used to be hardcoded `-phone.txt`, so running this script against the emulator
+    # (`--serial emulator-5554`, which is the only way to rehearse the harness without the phone) wrote
+    # `m8-multiselect-phone.txt` and **overwrote the real-phone evidence** that docs/ cites — with a
+    # transcript whose own first line says `device=emulator-5554`. The files were recoverable from git,
+    # but a verification record that a rehearsal can silently replace is not a record.
+    transcript_suffix = "phone" if device == "b9026932" else re.sub(r"[^A-Za-z0-9]+", "-", device).strip("-")
     for script, label, extra in TESTS:
         # Cold-start **before every test**, not just once before the suite. Each test leaves its own
         # screens behind (the multiselect test finishes inside selection mode, the editor test inside the
@@ -213,7 +222,8 @@ def main() -> int:
         # simply not on the list page, and the failure read as a product problem. Both of those tests
         # pass on the emulator, which is what pointed at the harness rather than the app.
         ui.Driver(device, CDP_PORT, 2.75, 0).cold_start()
-        transcript = ROOT / ".shots" / (Path(script).stem.replace("t-", "m8-") + "-phone.txt")
+        stem = Path(script).stem.replace("t-", "m8-")
+        transcript = ROOT / ".shots" / f"{stem}-{transcript_suffix}.txt"
         # -u: Python block-buffers stdout when it is redirected, which made a running test look like a
         # hung one and an empty transcript look like a test that produced nothing.
         p = run([sys.executable, "-u", str(ROOT / script), *extra, device, str(CDP_PORT)], cwd=str(ROOT))
