@@ -68,6 +68,10 @@ TESTS = [
     (".shots/t-multiselect.py", "长按批量勾选删除", ["--via", "cdp"]),
     (".shots/t-wheel.py", "滚轮循环滚动", []),
     (".shots/t-editor.py", "编辑页预览与新建分组", []),
+    # Added with the M9 features they cover. Both drive the UI through the bridge and the DOM, so they
+    # work over CDP on the phone the same way `t-multiselect` does.
+    (".shots/t-menu.py", "首页三点菜单", []),
+    (".shots/t-prealert.py", "一小时到点提示", []),
 ]
 
 
@@ -81,6 +85,51 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def snapshot(device: str) -> dict:
+    """The user data a test run must not change, as comparable values.
+
+    Row counts **and the settings that a run can plausibly flip**. The counts alone were not enough: a
+    run moved the global 贪睡 switch from on to off and this script reported "用户数据未被测试改动 ✅",
+    because it was only counting alarms and groups. A settings value is user data too — it is the kind
+    the user chose deliberately — so it belongs in the comparison.
+
+    The fields are the ones a UI test can touch through the app: 贪睡, the volume-key action (which the
+    app changes *by itself* when 贪睡 goes off), the time format, the theme, and the one-time-alarm
+    default. Anything else in `settings` is bookkeeping (`pre_alert_notified_at`) or is not reachable
+    from a screen, and flagging those would report the app working as designed.
+    """
+    fields = [
+        "default_delete_once_after_ring",
+        "default_pause_days",
+        "default_snooze_minutes",
+        "default_snooze_max_count",
+        "snooze_enabled",
+        "default_auto_stop_minutes",
+        "default_fade_in_seconds",
+        "time_format",
+        "theme",
+        "volume_key_action",
+        "permission_check_done",
+    ]
+    # Read one column at a time through the helper the counts already use. A single CONCAT query was the
+    # first attempt and is wrong for this helper: `db_scalar` returns an int, so a concatenated string
+    # comes back as whatever leading digits it has.
+    #
+    # Flattened into `settings.<column>` keys rather than nested under one "settings" key: the report
+    # names which value moved, and "settings changed" would send the reader hunting through eleven
+    # fields by eye — the same complaint that made this comparison worth widening in the first place.
+    snap = {
+        "alarms": ui.db_scalar(device, "select count(*) from alarms"),
+        "groups": ui.db_scalar(device, "select count(*) from alarm_groups"),
+    }
+    for f in fields:
+        try:
+            snap[f"settings.{f}"] = ui.db_scalar(device, f"select ifnull({f}, 'null') from settings limit 1")
+        except Exception:  # noqa: BLE001 - a missing settings row is a valid state, not an error
+            snap[f"settings.{f}"] = None
+    return snap
 
 
 def main() -> int:
@@ -144,10 +193,7 @@ def main() -> int:
     print("  逐字节一致 ✅")
 
     print("\n== 4. data before ==")
-    before = {
-        "alarms": ui.db_scalar(device, "select count(*) from alarms"),
-        "groups": ui.db_scalar(device, "select count(*) from alarm_groups"),
-    }
+    before = snapshot(device)
     print(f"  {before}")
 
     print("\n== 5. tests ==")
@@ -174,13 +220,19 @@ def main() -> int:
                 print(f"        {line}")
 
     print("\n== 6. data after ==")
-    after = {
-        "alarms": ui.db_scalar(device, "select count(*) from alarms"),
-        "groups": ui.db_scalar(device, "select count(*) from alarm_groups"),
-    }
+    after = snapshot(device)
     print(f"  {after}")
     intact = before == after
-    print(f"  用户数据未被测试改动: {'✅' if intact else '❌ ' + str(before) + ' -> ' + str(after)}")
+    if intact:
+        print("  用户数据未被测试改动: ✅")
+    else:
+        # Say *which* field moved, not just that something did: a row count and a settings value are
+        # different kinds of change with different consequences, and "changed" alone sends the reader
+        # looking through the whole snapshot by eye.
+        moved = [k for k in before if before[k] != after.get(k)]
+        print(f"  用户数据被测试改动: ❌ {moved}")
+        for k in moved:
+            print(f"        {k}: {before[k]!r} -> {after.get(k)!r}")
 
     print("\n== summary ==")
     all_ok = all(ok for _, ok, _ in results) and intact
