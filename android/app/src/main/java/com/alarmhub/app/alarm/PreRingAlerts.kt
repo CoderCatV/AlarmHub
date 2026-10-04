@@ -103,16 +103,32 @@ object PreRingAlerts {
             .minByOrNull { it.second }
 
         if (next == null) {
-            // Nothing is scheduled at all. Clear the memory so that re-arming the same alarm later is
-            // announced again rather than suppressed by a stale instant.
-            if (app.repository.preAlertNotifiedAt() != null) {
-                Log.i(TAG, "nothing scheduled; clearing the announced instant")
-                app.repository.setPreAlertNotifiedAt(null)
-            }
+            // Nothing is scheduled at all — every alarm is off, paused, or there are none.
+            //
+            // Remove the banner (FR-7.10.6: do not leave a 「即将响铃」 for an alarm that will not ring)
+            // but **keep the memory**.
+            //
+            // Clearing the memory here was a real bug, found on the phone and invisible on the emulator
+            // because the emulator happened to have another alarm pending. The sequence on the phone:
+            //
+            //     12:50:55  alarm=64 at 13:10 already announced; staying silent
+            //     12:50:58  nothing scheduled; clearing the announced instant and the alert   <- paused
+            //     12:51:04  announced alarm=64 at 13:10 (18 min out)                        <- resumed: again!
+            //
+            // So pausing an alarm and un-pausing it produced a *second* announcement for the same ring
+            // instant, which is exactly what FR-7.10.2 forbids. The memory does not need clearing: a
+            // different ring always has a different instant, and `ringAt != announced` handles a stale
+            // memory by itself. Removing this also makes the two code paths agree — "nothing scheduled"
+            // now behaves like "something else is next", which is what an emulator with a second alarm
+            // was accidentally testing all along.
+            cancel(context)
+            Log.i(TAG, "nothing scheduled; the alert (if any) is down and the announced instant is kept")
             return
         }
 
         val (alarmId, ringAt, label) = next
+        val announced = app.repository.preAlertNotifiedAt()
+
         if (ringAt > windowStart) {
             // Still further out than an hour. The ALERT trigger registered by the scheduler will call
             // back when it is not.
@@ -126,7 +142,27 @@ object PreRingAlerts {
             return
         }
 
-        val announced = app.repository.preAlertNotifiedAt()
+        /*
+         * If the notification on screen is about a *different* ring than the one that is next now, take
+         * it down before deciding anything else (PRD FR-7.10.6).
+         *
+         * This is the **pause / disable / delete** case, and it is the one that shipped broken. The user
+         * paused an alarm and the notification stayed there, still announcing 「12:43 即将响铃」 for an
+         * alarm that would not ring. The log said so plainly:
+         *
+         *     12:35:15  announced alarm=57 at 12:43 (7 min out)
+         *     12:35:16  nothing scheduled; clearing the announced instant
+         *
+         * The old code only erased its memory; it never removed what the user was looking at. So the
+         * memory and the notification are now treated as one thing: any change to what is next cancels
+         * the old banner. A genuine event that brings the same instant back (a pause ending, a group
+         * re-enabled) re-announces it, because cancelling here does not touch `preAlertNotifiedAt`.
+         */
+        if (announced != null && announced != ringAt) {
+            Log.i(TAG, "the next ring moved (was ${iso(announced)}, now ${iso(ringAt)}); taking the old alert down")
+            cancel(context)
+        }
+
         if (announced == ringAt) {
             // This exact occurrence has already been announced, and nothing about it has changed since.
             // The user clearing the notification changes nothing here — which is the requirement: one

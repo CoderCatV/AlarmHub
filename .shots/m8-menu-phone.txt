@@ -1,7 +1,7 @@
 device=b9026932
-  webview pid=13466
+  webview pid=13072
 == 0. seed one throwaway alarm (so the 'list must not move' check has a row) ==
-  created: 53
+  created: 70
 == 1. the button moved to the top-right, and the old pill is gone ==
   .menu__button rect: {'x': 344, 'y': 52, 'w': 40, 'h': 40, 'right': 384, 'cx': 364, 'cy': 72}
   [OK ] the ⋮ button exists: True

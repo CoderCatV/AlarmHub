@@ -274,7 +274,41 @@ def main():
     if texts4:
         check("with the new time", f"{hour4:02d}:{minute4:02d}" in (texts4[0] or ""), True)
 
-    print("== 6. an alarm outside the hour alone announces nothing ==")
+    print("== 6. pausing the alarm must take the announcement down (FR-7.10.6) ==")
+    # This is the bug the user hit on the real device: they paused the alarm and the notification stayed,
+    # still announcing a ring that would never happen. The old code only erased its memory
+    # (`nothing scheduled; clearing the announced instant`) and never removed what was on screen.
+    #
+    # Pausing makes the next ring disappear entirely, so the announcement becomes a lie. Asserted on the
+    # notification being *gone*, which is the only thing the user can see.
+    texts5 = wait_for_notification(device, want=True, timeout=15)
+    check("it is announced before the pause", texts5 is not None, True)
+    plugin(d, f"await window.Capacitor.Plugins.AlarmHub.setAlarmEnabled({{id: {alarm_id}, enabled: false}})")
+    time.sleep(2)
+    force_recompute(d)
+    gone5 = wait_for_notification(device, want=False, timeout=15)
+    check("pausing removed the announcement", gone5, None)
+
+    print("== 7. re-enabling must not re-announce the same occurrence ==")
+    # This assertion was wrong the first time and the log is what settled it. I had written
+    # "re-enabling announces again"; the app logged
+    #     alarm=202 at=04:58 already announced; staying silent
+    # which is precisely the rule written down for FR-7.10.2 — one announcement per ring instant.
+    # A pause that is undone brings back the *same* instant, so it is the same occurrence, and the user
+    # has already been told. Cancelling clears the screen, deliberately not the memory.
+    #
+    # What must not happen either is a re-post, so the assertion is "still not on screen".
+    plugin(d, f"await window.Capacitor.Plugins.AlarmHub.setAlarmEnabled({{id: {alarm_id}, enabled: true}})")
+    time.sleep(2)
+    force_recompute(d)
+    time.sleep(3)
+    check(
+        "re-enabling the same occurrence stays silent (FR-7.10.2: one announcement per instant)",
+        notif_texts(device),
+        None,
+    )
+
+    print("== 8. an alarm outside the hour alone announces nothing ==")
     delete_alarms(d, [alarm_id] if alarm_id else [])
     time.sleep(1)
     force_recompute(d)
@@ -288,7 +322,7 @@ def main():
     time.sleep(3)
     check("nothing is announced for an alarm 2.5 hours out", notif_texts(device), None)
 
-    print("== 7. the 「关闭闹钟」 action switches the alarm off ==")
+    print("== 9. the 「关闭闹钟」 action switches the alarm off ==")
     # The action's *effect* is exercised, the tap itself is not — and the distinction is honest:
     #
     #   `am broadcast` **cannot** reach this receiver. It is `exported="false"`, and the log shows the
