@@ -139,6 +139,14 @@
             android:exported="false" />
 
         <!--
+          PRD FR-7.10's 「关闭闹钟」 action on the one-hour heads-up. Not exported, same reasoning as the
+          ring actions above: the only sender is this app's own notification.
+        -->
+        <receiver
+            android:name=".alarm.PreRingActionReceiver"
+            android:exported="false" />
+
+        <!--
           Re-registers every alarm after the events that invalidate registrations (PRD FR-4.5).
           Also not exported; the system delivers these broadcasts to a non-exported receiver as long
           as it is declared, which is what `RECEIVE_BOOT_COMPLETED` above enables for the boot case.

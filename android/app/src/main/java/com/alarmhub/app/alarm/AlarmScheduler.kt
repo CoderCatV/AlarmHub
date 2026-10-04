@@ -38,6 +38,15 @@ enum class TriggerKind {
      * regular occurrence. Running it through that check would always reject it.
      */
     SNOOZE,
+
+    /**
+     * One hour before the ring, so the "coming up" notification can appear on time (PRD FR-7.10.1).
+     *
+     * Its own kind rather than folding it into [PRE]: the two exist for unrelated reasons (that one is
+     * the 5-second redundancy net of PRD §5.7), they fire at different distances, and a shared kind
+     * would make one of them indistinguishable from the other in the log.
+     */
+    ALERT,
 }
 
 /**
@@ -106,6 +115,12 @@ class AlarmScheduler(
             }
         }
         Log.i(TAG, "recomputeAll: ${stored.size} stored, $registered registered, zone=$zone")
+
+        // PRD FR-7.10: the full sweep is also the moment to ask whether the next alarm deserves its
+        // one-hour heads-up. Doing it here means every path that can change "what rings next" — a write,
+        // boot, a clock change, an app update — gets the same answer from the same code.
+        runCatching { PreRingAlerts.notifyIfDue(context) }
+            .onFailure { Log.e(TAG, "pre-alert check failed", it) }
     }
 
     /**
@@ -189,6 +204,22 @@ class AlarmScheduler(
 
         alarmManager.setAlarmClock(alarmClockInfo(nextRingAt, alarmId), pendingIntent(alarmId, TriggerKind.MAIN))
 
+        // PRD FR-7.10.1: the instant the next alarm enters the one-hour window. Registered as its own
+        // trigger because that transition happens while the app is not running — the whole point is to
+        // speak up an hour early, which is usually before the user next opens the app.
+        //
+        // If the alarm is *already* within the hour (a new alarm set for 20 minutes from now, a clock
+        // that just jumped), there is nothing to register: `recomputeAll` calls the same check inline
+        // right after the sweep, so the notification still goes out.
+        val alertAt = nextRingAt - PreRingAlerts.WINDOW_MINUTES * 60_000L
+        if (alertAt > now) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                alertAt,
+                pendingIntent(alarmId, TriggerKind.ALERT),
+            )
+        }
+
         // M3.7: a trigger at the end of the later pause, so expiry is an event rather than something
         // noticed on the next launch.
         val pauseUntil = listOfNotNull(row.alarm.pauseUntil, row.group?.pauseUntil).maxOrNull()
@@ -260,13 +291,16 @@ class AlarmScheduler(
 
         /**
          * Request codes live in a band derived from the alarm id: one consecutive code per kind, in
-         * the low 24 bits `Intent` allows. 21 bits of id is 2 097 151 alarms, far past PRD's 200.
+         * the low 24 bits `Intent` allows. 20 bits of id is 1 048 575 alarms, far past PRD's 200.
          *
-         * `TriggerKind` has grown twice (PAUSE at M3, SNOOZE at M4) without any code having to be
-         * renumbered, because the kind only ever contributes its ordinal.
+         * `TriggerKind` has grown three times (PAUSE at M3, SNOOZE at M4, ALERT with PRD FR-7.10) without
+         * any code having to be renumbered, because the kind only ever contributes its ordinal. The shift
+         * grew from 3 to 4 when ALERT made five kinds, which is the one change that *would* move existing
+         * codes — every registration is rewritten on boot and on the first recompute, so the stale ones
+         * cannot survive long enough to matter; the mask shrank by the same bit to stay inside the 24 bits.
          */
-        private const val ID_SHIFT = 3
-        private const val ID_MASK = 0x1FFFFFL
+        private const val ID_SHIFT = 4
+        private const val ID_MASK = 0xFFFFFL
 
         fun requestCodeFor(alarmId: Long, kind: TriggerKind): Int =
             ((alarmId and ID_MASK).toInt() shl ID_SHIFT) + kind.ordinal

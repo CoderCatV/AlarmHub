@@ -39,8 +39,12 @@ abstract class AppDatabase : RoomDatabase() {
          *     restart mid-ring).
          * 3 → M8 adds `settings.snooze_enabled`: a global 贪睡 switch, for a user who does not use
          *     snooze at all. `DEFAULT 1` keeps every existing row behaving exactly as before.
+         * 4 → adds `settings.pre_alert_notified_at`: the ring instant the "alarm is coming up"
+         *     notification was last posted for (PRD FR-7.10.2's "only once"). Nullable on purpose —
+         *     `NULL` reads as "nothing has been announced yet", which is the correct state for every
+         *     existing install.
          */
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "alarmhub.db"
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -60,6 +64,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Nullable, with no DEFAULT: the column records *which* ring instant was announced, and
+                // "never announced" has to stay distinguishable from "announced at 0". Adding it as
+                // NULL means an upgrading install announces the next alarm normally instead of staying
+                // silent forever.
+                db.execSQL("ALTER TABLE settings ADD COLUMN pre_alert_notified_at INTEGER")
+            }
+        }
+
         /**
          * Every migration the app has ever shipped, applied to an on-disk database.
          *
@@ -69,7 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
          * Declared *after* the migrations it lists, because a companion object's properties are
          * initialised in source order and referring to one before its declaration is a compile error.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         /**
          * Opens (and creates) the database.

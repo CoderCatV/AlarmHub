@@ -93,6 +93,17 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
 
+        /*
+         * PRD FR-7.10: the one-hour heads-up. Not a ring trigger, so it must not go through §5.4's
+         * validation — at this instant the alarm is, by design, still an hour away. It only lets the
+         * shared check decide whether this occurrence has already been announced.
+         */
+        if (kind == TriggerKind.ALERT) {
+            Log.i(TAG, "alarm=$alarmId ALERT trigger at $now — checking the one-hour heads-up")
+            PreRingAlerts.notifyIfDue(app)
+            return
+        }
+
         val row = app.repository.alarmsWithGroups().firstOrNull { it.alarm.id == alarmId }
 
         /*

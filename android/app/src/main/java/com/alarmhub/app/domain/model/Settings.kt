@@ -36,6 +36,16 @@ data class Settings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val volumeKeyAction: VolumeKeyAction = VolumeKeyAction.SNOOZE,
     val permissionCheckDone: Boolean = false,
+    /**
+     * The ring instant that the "coming up" notification was last posted for (PRD FR-7.10).
+     *
+     * Not a user preference — it is bookkeeping the alert needs in order to appear **once** per
+     * occurrence. It lives in [Settings] rather than in its own store because `settings` is already the
+     * single-row table that survives reboots, and the rule needs exactly one remembered instant.
+     *
+     * `null` = nothing announced yet.
+     */
+    val preAlertNotifiedAt: Long? = null,
 ) {
     init {
         require(defaultPauseDays >= 1) { "defaultPauseDays must be at least 1, was $defaultPauseDays" }

@@ -125,6 +125,7 @@ fun SettingsEntity.toDomain(): Settings = Settings(
     },
     volumeKeyAction = if (volumeKeyAction == "dismiss") VolumeKeyAction.DISMISS else VolumeKeyAction.SNOOZE,
     permissionCheckDone = permissionCheckDone,
+    preAlertNotifiedAt = preAlertNotifiedAt,
 )
 
 fun Settings.toEntity(): SettingsEntity = SettingsEntity(
@@ -145,4 +146,5 @@ fun Settings.toEntity(): SettingsEntity = SettingsEntity(
     },
     volumeKeyAction = if (volumeKeyAction == VolumeKeyAction.DISMISS) "dismiss" else "snooze",
     permissionCheckDone = permissionCheckDone,
+    preAlertNotifiedAt = preAlertNotifiedAt,
 )

@@ -64,13 +64,21 @@ class AlarmSchedulerTest {
      *
      * The count is asserted against `TriggerKind.entries` rather than a literal, so adding a trigger
      * kind (SNOOZE arrived at M4) cannot silently start violating this without the test noticing.
+     *
+     * **The literal on the last line is a deliberate tripwire.** It failed when ALERT was added for PRD
+     * FR-7.10, which is what it is for: a new kind changes how many `AlarmManager` registrations each
+     * alarm holds and the `requestCodeFor` bit layout, and neither should happen without someone
+     * stopping to confirm it is intended. It is — ALERT fires one hour before the ring so the "coming
+     * up" notification can appear while the app is not running — so the number and the comment move
+     * together.
      */
     @Test
     fun everyTriggerKindForOneAlarmGetsADistinctRequestCode() {
         val codes = TriggerKind.entries.map { AlarmScheduler.requestCodeFor(42L, it) }
 
         assertEquals("one code per kind", TriggerKind.entries.size, codes.toSet().size)
-        assertEquals("a fresh alarm carries exactly these kinds", 4, TriggerKind.entries.size)
+        // MAIN, PRE, PAUSE, SNOOZE, ALERT.
+        assertEquals("a fresh alarm carries exactly these kinds", 5, TriggerKind.entries.size)
     }
 
     @Test

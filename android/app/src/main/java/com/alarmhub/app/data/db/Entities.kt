@@ -140,6 +140,19 @@ data class SettingsEntity(
     /** `snooze` / `dismiss`. */
     @ColumnInfo(name = "volume_key_action") val volumeKeyAction: String = "snooze",
     @ColumnInfo(name = "permission_check_done") val permissionCheckDone: Boolean = false,
+    /**
+     * The trigger instant the "alarm is coming up" notification was last posted for (PRD FR-7.10).
+     *
+     * One column rather than a table: the alert is about *the next* alarm only, so remembering the
+     * single instant it was posted for is enough to answer "should this one be posted?". `null` means
+     * nothing has been announced yet.
+     *
+     * Stored as the **ring instant**, not as a timestamp of when the notification appeared. That is
+     * what makes the rule hold together: editing the alarm to a different time produces a different
+     * instant and therefore earns a fresh alert, while a user clearing the notification changes
+     * nothing — so it is not re-posted (PRD FR-7.10.2).
+     */
+    @ColumnInfo(name = "pre_alert_notified_at") val preAlertNotifiedAt: Long? = null,
 ) {
     companion object {
         const val SINGLETON_ID = 1

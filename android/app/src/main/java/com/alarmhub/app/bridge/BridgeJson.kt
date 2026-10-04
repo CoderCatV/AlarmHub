@@ -173,6 +173,11 @@ fun Settings.toJson(): JSObject = JSObject().apply {
     put("theme", theme.wire)
     put("volumeKeyAction", if (volumeKeyAction == VolumeKeyAction.DISMISS) "dismiss" else "snooze")
     put("permissionCheckDone", permissionCheckDone)
+    // `preAlertNotifiedAt` is deliberately absent: it is native bookkeeping for PRD FR-7.10, not a
+    // setting the user has or the pages should see. It also must not travel to the front end, because
+    // `updateSettings` round-trips this object back — anything the pages do not send is preserved, so
+    // leaving it out here is what keeps the "already announced" memory from being wiped by a page that
+    // changes the theme.
 }
 
 fun PermissionStatus.toJson(): JSObject = JSObject().apply {

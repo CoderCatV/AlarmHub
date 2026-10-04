@@ -179,6 +179,18 @@ class AlarmRepository(
     }
 
     /**
+     * The ring instant the "coming up" notification was last posted for (PRD FR-7.10).
+     *
+     * Read and written through `settings()` because it is bookkeeping rather than a user preference:
+     * one remembered instant, in the table that already survives reboots.
+     */
+    suspend fun preAlertNotifiedAt(): Long? = settings().preAlertNotifiedAt
+
+    suspend fun setPreAlertNotifiedAt(ringAt: Long?) {
+        updateSettings { it.copy(preAlertNotifiedAt = ringAt) }
+    }
+
+    /**
      * PRD §5.3 step 4: persist the conversion result. `pauseUntil` is an absolute instant, so the
      * only thing the runtime ever has to do is compare it with "now".
      */

@@ -3,6 +3,7 @@ package com.alarmhub.app
 import android.app.Application
 import android.util.Log
 import com.alarmhub.app.alarm.AlarmScheduler
+import com.alarmhub.app.alarm.PreRingAlerts
 import com.alarmhub.app.data.AlarmRepository
 import com.alarmhub.app.data.BuiltInGroups
 import com.alarmhub.app.data.db.AppDatabase
@@ -80,6 +81,9 @@ class AlarmHubApp : Application() {
         // any trigger can arrive: a channel created late is a channel with downgraded importance, and
         // the controller needs a repository to apply a ring's ending to the stored alarm.
         RingNotifications.ensureChannel(this)
+        // PRD FR-7.10's heads-up has its own channel, and for the same reason: importance is fixed when
+        // a channel is created, so creating it on the first alert would permanently downgrade it.
+        PreRingAlerts.ensureChannel(this)
         RingController.attach(this)
 
         // Register whatever the stored alarms need. On a cold start this is what arms the alarms of a
