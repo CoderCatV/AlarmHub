@@ -1,12 +1,12 @@
 device=b9026932 via=cdp
-  webview pid=18711
+  webview pid=10243
 == navigate to the list ==
   page: list
 == cleanup ==
 == baseline ==
   database rows: 0, list rows: 0
 == create two throwaway alarms labelled '自测-可删' ==
-  created ids: [43, 44]
+  created ids: [51, 52]
   [OK ] the database grew by two: 2
   [OK ] and both show up in the list: 2
   [OK ] still out of selection mode: False

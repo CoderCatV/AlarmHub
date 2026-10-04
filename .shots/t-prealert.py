@@ -208,7 +208,19 @@ def main():
             check("the label is the body", text, LABEL)
 
         segment = notif_segment(device) or ""
-        check("it offers a 关闭闹钟 action", "关闭闹钟" in segment, True)
+        # What is asserted about the affordance is the **tap target**, not a button label.
+        #
+        # FR-7.10.5: the first version used `addAction("关闭闹钟")`, and on the Xiaomi 14 the user could
+        # not reach it — HyperOS notifications cannot be pulled down to expand, and Android only renders
+        # action buttons when expanded. `dumpsys` proved the action was registered (`actions={[0] …}`)
+        # while the user proved it was invisible, which is why the test now checks that the *content*
+        # intent is the turn-off broadcast and that no unreachable action is advertised.
+        check("tapping the body targets the turn-off action", "contentIntent=" in segment and "broadcastIntent" in segment, True)
+        check(
+            "it no longer advertises an action button that this ROM cannot show",
+            "actions={" not in segment,
+            True,
+        )
         check("it uses its own channel", "alarmhub_upcoming" in segment, True)
 
     print("== 2. a recompute must not re-announce the same occurrence (FR-7.10.2) ==")

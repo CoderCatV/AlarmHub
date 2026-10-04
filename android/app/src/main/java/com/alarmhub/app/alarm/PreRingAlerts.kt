@@ -159,12 +159,22 @@ object PreRingAlerts {
         val clock = RingRequest.formatClock(at.hour, at.minute, timeFormat)
         val name = label.ifBlank { "闹钟" }
 
-        val openApp = PendingIntent.getActivity(
-            context,
-            10,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        /*
+         * Tapping the notification body **turns the alarm off** — there is no separate action button.
+         *
+         * This is a real-device finding, not a preference. The first version had the obvious design: a
+         * 「关闭闹钟」 action via `addAction`, body tap opening the app. On the Xiaomi 14 the user reported
+         * "没有「关闭闹钟」按钮", and `dumpsys notification` showed the action *was* registered
+         * (`actions={[0] "关闭闹钟" -> PendingIntent{...}}`) — but **HyperOS notifications cannot be
+         * expanded by pulling down** (only swiped sideways), and Android only renders action buttons in
+         * the expanded state. So the button could never be reached on this device: registered, invisible.
+         *
+         * Pointing the content intent at the turn-off action instead makes the affordance work in the
+         * collapsed row, on every ROM, without depending on a gesture this platform does not have.
+         *
+         * Trade-off, recorded in PRD FR-7.10.5: tapping no longer opens the app. That is the one thing
+         * lost, and it is deliberately traded for an action the user can actually perform.
+         */
         val turnOff = PendingIntent.getBroadcast(
             context,
             11,
@@ -183,8 +193,7 @@ object PreRingAlerts {
             .setOngoing(false)
             .setAutoCancel(true)
             .setShowWhen(false)
-            .setContentIntent(openApp)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "关闭闹钟", turnOff)
+            .setContentIntent(turnOff)
             .build()
 
         if (!RingNotifications.canPost(context)) {

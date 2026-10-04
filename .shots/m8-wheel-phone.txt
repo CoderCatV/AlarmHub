@@ -1,8 +1,8 @@
-device=b9026932 webview pid=25823
+device=b9026932 webview pid=12831
 page: '新建闹钟'
 == the column is really tripled ==
   hour: rendered=72 scrollTop=1728 rect=[110, 152, 84, 240]
-  minute: rendered=180 scrollTop=2976
+  minute: rendered=180 scrollTop=3984
   [OK ] hour column renders 3 x 24: 72
   [OK ] minute column renders 3 x 60: 180
 == the highlight is on the centred row, exactly once on screen ==
