@@ -215,8 +215,20 @@ object RingController {
      * |---|---|---|---|
      * | 关闭 / 超时 | delete the row | mark `expired` | reschedule the next ring |
      * | 贪睡 | keep it (a snooze is not the end of the alarm) | same | same |
+     *
+     * Split from [applyPostRing] so the FR-7.10 pre-alert refresh runs **after** the database writes have
+     * settled, whatever this ending did. Putting the refresh inside `AlarmScheduler.cancel` was the first
+     * attempt and it was wrong by construction: `cancel` is called *before* `markExpired` in the 过期
+     * branch, so the refresh re-read a schedule that still contained the alarm it had just heard ring and
+     * re-armed the banner for it. The test caught it (`its banner is gone too` failed for exactly that
+     * branch, while the delete branch passed because there the row really was already gone).
      */
     private suspend fun applyPostRing(app: AlarmHubApp, request: RingRequest, reason: RingEndReason) {
+        applyPostRingWrites(app, request, reason)
+        app.scheduler.refreshPreAlert()
+    }
+
+    private suspend fun applyPostRingWrites(app: AlarmHubApp, request: RingRequest, reason: RingEndReason) {
         val repository = app.repository
         val scheduler = app.scheduler
 

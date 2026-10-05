@@ -1,13 +1,13 @@
 device=b9026932 via=cdp
-  webview pid=11036
+  webview pid=23844
 == navigate to the list ==
   page: list
 == cleanup ==
 == baseline ==
-  database rows: 1, list rows: 1
+  database rows: 0, list rows: 0
 == create two throwaway alarms labelled '自测-可删' ==
-  created ids: [68, 69]
-  [OK ] the database grew by two: 3
+  created ids: [98, 99]
+  [OK ] the database grew by two: 2
   [OK ] and both show up in the list: 2
   [OK ] still out of selection mode: False
   [OK ] still showing the clock hero: True
@@ -28,29 +28,29 @@ device=b9026932 via=cdp
   [OK ] two rows ticked: 2
   ticked rows: ['03:07 自测-可删', '04:07 自测-可删']
 == select all / select none ==
-  the toggle offers: '全选'
-  [OK ] clicking 全选 ticks every row: 3
-  [OK ] the toggle now offers the opposite: '取消全选'
+  the toggle offers: '取消全选'
+  [OK ] clicking 取消全选 clears the ticks: 0
+  [OK ] the toggle now offers the opposite: '全选'
   [OK ] but stays in selection mode: True
-  [OK ] the second click does the opposite: 0
-  [OK ] and disables the delete button exactly when nothing is ticked: True
-  [OK ] nothing deleted by the toggle: 3
+  [OK ] the second click does the opposite: 2
+  [OK ] and disables the delete button exactly when nothing is ticked: False
+  [OK ] nothing deleted by the toggle: 2
 == select the fixture rows, then delete them in two steps ==
   [OK ] starting from nothing ticked: 0
   [OK ] there are two fixture rows: 2
-  [OK ] select-all ticked every row: 3
-  unticked 1 row(s) that were not this test's
+  [OK ] select-all ticked every row: 2
+  unticked 0 row(s) that were not this test's
   [OK ] both picked (and only those): 2
   after the first tap the button reads: '确认删除 2 项？'
   [OK ] first tap only arms the button: True
-  [OK ] nothing deleted yet: 3
-  database rows: 3 -> 1 (started at 1)
-  [OK ] exactly the two throwaway rows are gone: 1
-  [OK ] the view shrank back to the device's own rows: 1
+  [OK ] nothing deleted yet: 2
+  database rows: 2 -> 0 (started at 0)
+  [OK ] exactly the two throwaway rows are gone: 0
+  [OK ] the view shrank back to the device's own rows: 0
   [OK ] no throwaway row is left: 0
   [OK ] selection mode ended: False
   [OK ] the selection bar is gone: None
   [OK ] the database has no 自测-可删 rows at the end: 0
-  [OK ] and the device's own alarms are untouched: 1
+  [OK ] and the device's own alarms are untouched: 0
 
 ALL CHECKS PASSED

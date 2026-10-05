@@ -115,10 +115,32 @@ class AlarmScheduler(
             }
         }
         Log.i(TAG, "recomputeAll: ${stored.size} stored, $registered registered, zone=$zone")
+        refreshPreAlert()
+    }
 
-        // PRD FR-7.10: the full sweep is also the moment to ask whether the next alarm deserves its
-        // one-hour heads-up. Doing it here means every path that can change "what rings next" — a write,
-        // boot, a clock change, an app update — gets the same answer from the same code.
+    /**
+     * Re-evaluates the PRD FR-7.10 「即将响铃」 heads-up and takes the banner down when it no longer
+     * applies.
+     *
+     * **Call it after the database has settled, never from inside a write sequence.** Getting that wrong
+     * twice is what this KDoc is for:
+     *
+     * 1. The check originally lived only at the end of [recomputeAll]. Every write, boot and clock change
+     *    goes through that sweep, so it looked complete — but it missed the end of a ring.
+     *    [RingController] deletes a "ring then delete" one-off (or marks it 过期) and **returns without a
+     *    recompute** (FR-3.6 / FR-3.7), so nothing took the banner down.
+     * 2. Moving it into [cancel] then looked like the tidy choke point, and was worse: `cancel` runs
+     *    *before* `markExpired` in the 过期 branch, so the refresh read a schedule that still contained the
+     *    alarm it had just heard ring, and re-armed the banner for it. The ring-end test caught it (the
+     *    delete branch passed, the 过期 branch failed, and the difference between them is exactly where
+     *    `cancel` sits relative to the writes).
+     *
+     * So the rule is positional, not structural: **after the writes, on whichever path knows it has
+     * finished them** — the recompute paths here, and [RingController.applyPostRing] after its tail.
+     * Idempotent and cheap (one query plus a notification-id compare), so being called more than once is
+     * fine; being called too early is not.
+     */
+    suspend fun refreshPreAlert() {
         runCatching { PreRingAlerts.notifyIfDue(context) }
             .onFailure { Log.e(TAG, "pre-alert check failed", it) }
     }
@@ -133,11 +155,18 @@ class AlarmScheduler(
         cancel(alarmId)
         val row = repository.alarmsWithGroups().firstOrNull { it.alarm.id == alarmId }
             // Deleted: nothing left to register (PRD §5.4's 被删 branch).
-            ?: return
+            ?: run {
+                refreshPreAlert()
+                return
+            }
         val now = timeSource.nowMillis()
         val next = NextRingCalculator(calendar).nextRing(row.alarm, row.group, now, ZoneId.systemDefault())
-            ?: return
+            ?: run {
+                refreshPreAlert()
+                return
+            }
         schedule(row, next, now)
+        refreshPreAlert()
     }
 
     /**

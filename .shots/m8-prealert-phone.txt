@@ -1,9 +1,9 @@
 device=b9026932
-  webview pid=14330
+  webview pid=26630
 == 0. clean slate ==
 == 1. an alarm 30 minutes out must be announced ==
-  alarm id=71 at 13:30 (30 min out)
-  notification: ('13:30 即将响铃', '自测-预告')
+  alarm id=101 at 13:16 (30 min out)
+  notification: ('13:16 即将响铃', '自测-预告')
   [OK ] the heads-up appeared: True
   the app's next alarm is: '自测-预告'
   [OK ] the title names the ring time: True
@@ -13,21 +13,21 @@ device=b9026932
   [OK ] it no longer advertises an action button that this ROM cannot show: True
   [OK ] it uses its own channel: True
 == 2. a recompute must not re-announce the same occurrence (FR-7.10.2) ==
-  before: ('13:30 即将响铃', '自测-预告')
-  after:  ('13:30 即将响铃', '自测-预告')
-  [OK ] the same notification is still up, unchanged: ('13:30 即将响铃', '自测-预告')
-  [OK ] and it is still the same occurrence: '13:30 即将响铃'
+  before: ('13:16 即将响铃', '自测-预告')
+  after:  ('13:16 即将响铃', '自测-预告')
+  [OK ] the same notification is still up, unchanged: ('13:16 即将响铃', '自测-预告')
+  [OK ] and it is still the same occurrence: '13:16 即将响铃'
 == 3. moving the alarm earns a new announcement ==
-  moved to 13:45 (45 min out)
-  notification: ('13:45 即将响铃', '自测-预告')
+  moved to 13:31 (45 min out)
+  notification: ('13:31 即将响铃', '自测-预告')
   [OK ] the new occurrence is announced: True
   [OK ] and it names the new time: True
 == 4. an alarm that moves out of the hour takes the notification down ==
-  moved to 16:00 (3 h out)
+  moved to 15:46 (3 h out)
   [OK ] the stale 「即将响铃」 is gone: None
 == 5. and moving back inside the hour announces the new instant ==
-  moved to 13:20 (20 min out)
-  notification: ('13:20 即将响铃', '自测-预告')
+  moved to 13:07 (20 min out)
+  notification: ('13:07 即将响铃', '自测-预告')
   [OK ] announced again: True
   [OK ] with the new time: True
 == 6. pausing the alarm must take the announcement down (FR-7.10.6) ==
@@ -36,10 +36,10 @@ device=b9026932
 == 7. re-enabling must not re-announce the same occurrence ==
   [OK ] re-enabling the same occurrence stays silent (FR-7.10.2: one announcement per instant): None
 == 8. an alarm outside the hour alone announces nothing ==
-  alarm at 15:31 (2.5 h out)
+  alarm at 15:17 (2.5 h out)
   [OK ] nothing is announced for an alarm 2.5 hours out: None
 == 9. the 「关闭闹钟」 action switches the alarm off ==
-  alarm id=73 at 13:26
+  alarm id=103 at 13:12
   [OK ] it was announced before the action: True
   getAlarm(enabled) -> False
   [OK ] the alarm is switched off: False

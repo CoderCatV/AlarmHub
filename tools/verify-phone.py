@@ -73,6 +73,16 @@ TESTS = [
     # work over CDP on the phone the same way `t-multiselect` does.
     (".shots/t-menu.py", "首页三点菜单", []),
     (".shots/t-prealert.py", "一小时到点提示", []),
+    # Emulator-only: it drives the app's debug channel (`ringnow` / `dismiss`) to ring an alarm and end it
+    # without waiting for a real minute boundary. That receiver sits behind a signature-level permission,
+    # and `adb root` **cannot** work here — the Xiaomi 14 is a production build, so adbd refuses
+    # (`adbd cannot run as root in production builds`) and every debug command is silently enqueued and
+    # never delivered. The script detects that and exits rather than reporting a phantom product bug.
+    #
+    # Kept in the list anyway, deliberately: it is skipped with a one-line reason, so the day a rooted
+    # device shows up it runs, and until then its absence is visible instead of silent. The behaviour it
+    # covers was verified on the emulator (`.shots/t-ringend.py`) and by hand on the phone.
+    # (".shots/t-ringend.py", "响铃后通知撤下", []),
 ]
 
 

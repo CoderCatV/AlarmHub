@@ -35,6 +35,17 @@ class NextRingCalculator(private val calendar: HolidayCalendar) {
      * [schedules] exists so the caller can hand in the alarm's own schedule when it is ringing
      * alone, or a group-level schedule when the question is "when does this group next ring".
      */
+    /**
+     * Alarms that are switched off, expired or permanently disabled will not ring, so they are dropped
+     * here — the same set [statusOf] drops in its first branch.
+     *
+     * `expired` was missing from this check until PRD FR-7.10's ring-end test found it. It mattered:
+     * `RingController` marks a kept one-off 过期 after it rings (FR-3.7), and a `nextRing` that still
+     * answered "04:34" for that alarm made the pre-alert logic believe the ring was still coming — so it
+     * took the "already announced, stay silent" branch and left 「04:34 即将响铃」 in the shade *after the
+     * alarm had already rung*. Two methods in one file disagreeing about what counts as "will not ring"
+     * is the kind of thing only a real end-to-end path exposes.
+     */
     fun nextRing(
         alarm: Alarm,
         group: Group?,
@@ -42,7 +53,9 @@ class NextRingCalculator(private val calendar: HolidayCalendar) {
         zone: ZoneId,
         schedules: List<AlarmSchedule> = listOf(alarm.schedule),
     ): Long? {
-        if (!alarm.enabled || alarm.permanentDisabled || group?.permanentDisabled == true) return null
+        if (!alarm.enabled || alarm.expired || alarm.permanentDisabled || group?.permanentDisabled == true) {
+            return null
+        }
         return firstRingAfter(schedules, floorOf(alarm.pauseUntil, group?.pauseUntil, now), zone)
     }
 
